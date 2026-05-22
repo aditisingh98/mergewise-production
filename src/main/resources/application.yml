@@ -2,7 +2,7 @@ server:
   port: 8090
 github:
   # Local testing only: replace the placeholder below temporarily, then remove it before committing.
-  token: ${GITHUB_TOKEN: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}
+  token: ${GITHUB_TOKEN:PASTE_YOUR_GITHUB_TOKEN_HERE}
 spring:
   kafka:
     bootstrap-servers: localhost:9092
