@@ -1,5 +1,7 @@
 package com.mergewise.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.mergewise.dto.PRFileChange;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -22,7 +25,13 @@ public class GitHubService {
     private String token;
 
     public List<String> fetchFiles(String repo, Integer prNumber) {
+        return fetchFileChanges(repo, prNumber).stream()
+                .map(PRFileChange::getPatch)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
 
+    public List<PRFileChange> fetchFileChanges(String repo, Integer prNumber) {
         String url = "https://api.github.com/repos/" + repo +
                 "/pulls/" + prNumber + "/files?per_page=100";
         WebClient.RequestHeadersSpec<?> request = webClient.get()
@@ -57,15 +66,52 @@ public class GitHubService {
         }
 
         return response.stream()
-                .map(GitHubFileResponse::getPatch)   // diff content
-                .filter(Objects::nonNull)           // ignore binary files
+                .map(this::toFileChange)
                 .collect(Collectors.toList());
+    }
+
+    private PRFileChange toFileChange(GitHubFileResponse response) {
+        PRFileChange change = new PRFileChange();
+        change.setFilename(response.getFilename());
+        change.setStatus(response.getStatus());
+        change.setAdditions(response.getAdditions());
+        change.setDeletions(response.getDeletions());
+        change.setChanges(response.getChanges());
+        change.setPreviousFilename(response.getPreviousFilename());
+        change.setPatch(response.getPatch());
+        change.setAddedLines(extractChangedLines(response.getPatch(), '+'));
+        change.setRemovedLines(extractChangedLines(response.getPatch(), '-'));
+        return change;
+    }
+
+    private List<String> extractChangedLines(String patch, char marker) {
+        List<String> lines = new ArrayList<>();
+        if (patch == null || patch.isBlank()) {
+            return lines;
+        }
+
+        for (String line : patch.split("\\R")) {
+            if (line.length() < 2 || line.charAt(0) != marker) {
+                continue;
+            }
+            if (line.startsWith("+++") || line.startsWith("---")) {
+                continue;
+            }
+            lines.add(line.substring(1));
+        }
+        return lines;
     }
 
     // DTO inside same file for simplicity
     @Data
     public static class GitHubFileResponse {
         private String filename;
+        private String status;
+        private Integer additions;
+        private Integer deletions;
+        private Integer changes;
+        @JsonProperty("previous_filename")
+        private String previousFilename;
         private String patch;   // THIS is what we need for AI analysis
     }
 }

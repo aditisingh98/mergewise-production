@@ -1,6 +1,7 @@
 package com.mergewise.kafka;
 
 import com.mergewise.context.AgentContext;
+import com.mergewise.dto.PRFileChange;
 import com.mergewise.dto.PRRequest;
 import com.mergewise.orchestrator.AgentOrchestrator;
 import com.mergewise.service.GitHubPRParser;
@@ -9,6 +10,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,9 +43,12 @@ public class KafkaConsumerService {
    context.setRepo(repo);
    context.setPrNumber(prNumber);
 
-   context.setFiles(
-           gitHubService.fetchFiles(repo, prNumber)
-   );
+   List<PRFileChange> fileChanges = gitHubService.fetchFileChanges(repo, prNumber);
+   context.setFileChanges(fileChanges);
+   context.setFiles(fileChanges.stream()
+           .map(PRFileChange::getPatch)
+           .filter(Objects::nonNull)
+           .collect(Collectors.toList()));
 
    orchestrator.run(context);
 
