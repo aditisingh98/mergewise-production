@@ -1,6 +1,7 @@
 package com.mergewise.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.mergewise.dto.FileLanguageDetector;
 import com.mergewise.dto.PRFileChange;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -71,16 +72,53 @@ public class GitHubService {
     }
 
     private PRFileChange toFileChange(GitHubFileResponse response) {
+
         PRFileChange change = new PRFileChange();
+
         change.setFilename(response.getFilename());
+
         change.setStatus(response.getStatus());
+
         change.setAdditions(response.getAdditions());
+
         change.setDeletions(response.getDeletions());
+
         change.setChanges(response.getChanges());
+
         change.setPreviousFilename(response.getPreviousFilename());
+
         change.setPatch(response.getPatch());
-        change.setAddedLines(extractChangedLines(response.getPatch(), '+'));
-        change.setRemovedLines(extractChangedLines(response.getPatch(), '-'));
+
+        change.setAddedLines(
+                extractChangedLines(response.getPatch(), '+')
+        );
+
+        change.setRemovedLines(
+                extractChangedLines(response.getPatch(), '-')
+        );
+
+        change.setLanguage(
+                FileLanguageDetector.detect(
+                        change.getFilename()
+                )
+        );
+
+        change.setModule(
+                extractModule(
+                        change.getFilename()
+                )
+        );
+
+        change.setBackendCritical(
+                isBackendCritical(
+                        change.getFilename()
+                )
+        );
+
+        change.setRiskScore(
+                calculateInitialRiskScore(change)
+        );
+
         return change;
     }
 
@@ -113,5 +151,52 @@ public class GitHubService {
         @JsonProperty("previous_filename")
         private String previousFilename;
         private String patch;   // THIS is what we need for AI analysis
+    }
+    private String extractModule(String filename) {
+
+        if (filename == null) {
+            return "unknown";
+        }
+
+        String[] parts = filename.split("/");
+
+        if (parts.length > 2) {
+            return parts[2];
+        }
+
+        return "root";
+    }
+    private Boolean isBackendCritical(String filename) {
+
+        if (filename == null) {
+            return false;
+        }
+
+        filename = filename.toLowerCase();
+
+        return filename.contains("controller")
+                || filename.contains("service")
+                || filename.contains("repository")
+                || filename.contains("config")
+                || filename.contains("security")
+                || filename.contains("kafka");
+    }
+    private Integer calculateInitialRiskScore(PRFileChange file) {
+
+        int score = 0;
+
+        if (Boolean.TRUE.equals(file.getBackendCritical())) {
+            score += 40;
+        }
+
+        if ("java".equalsIgnoreCase(file.getLanguage())) {
+            score += 25;
+        }
+
+        if (file.getChanges() != null) {
+            score += Math.min(file.getChanges(), 30);
+        }
+
+        return Math.min(score, 100);
     }
 }

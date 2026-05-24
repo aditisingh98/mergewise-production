@@ -1,50 +1,71 @@
 package com.mergewise.orchestrator;
-import org.springframework.stereotype.Service;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import com.mergewise.agents.core.Agent;
+
+import com.mergewise.agents.npe.NpeAgent;
+import com.mergewise.agents.planner.PlannerAgent;
+import com.mergewise.agents.quality.QualityAgent;
 import com.mergewise.context.AgentContext;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class AgentOrchestrator {
- private final Map<String,Agent> agentMap;
 
- public AgentOrchestrator(List<Agent> agents) {
-  this.agentMap = agents.stream()
-          .collect(Collectors.toMap(Agent::getName, Function.identity()));
- }
+ private final PlannerAgent plannerAgent;
 
- public AgentContext run(AgentContext c){
-  Set<String> executedAgents = new HashSet<>();
+ private final NpeAgent npeAgent;
 
-  while(!c.isComplete()){
-   getAgent("PLANNER").execute(c);
+ private final QualityAgent qualityAgent;
 
-   String next=(String)c.getMetadata().get("next");
-   if(next==null){c.setComplete(true);break;}
+ public AgentContext run(AgentContext context) {
 
-   if(!executedAgents.add(next)){
-    c.getMetadata().remove("next");
-    c.setComplete(true);
-    break;
+  log.info("Starting Agent Orchestration");
+
+  // STEP 1 → PLANNER
+
+  plannerAgent.execute(context);
+
+  // STEP 2 → NPE ANALYSIS
+
+  npeAgent.analyze(context);
+
+  // STEP 3 → QUALITY ANALYSIS
+
+  qualityAgent.execute(context);
+
+  // STEP 4 → FINAL DECISION
+
+  if (context.getReviewIssues().isEmpty()) {
+
+   context.setFinalDecision("APPROVE");
+
+  } else {
+
+   boolean criticalIssuePresent =
+           context.getReviewIssues()
+                   .stream()
+                   .anyMatch(issue ->
+                           "CRITICAL".equalsIgnoreCase(
+                                   issue.getSeverity()
+                           )
+                   );
+
+   if (criticalIssuePresent) {
+    context.setFinalDecision("BLOCK_MERGE");
+   } else {
+    context.setFinalDecision("CHANGES_REQUIRED");
    }
-
-   getAgent(next).execute(c);
-   c.getMetadata().remove("next");
   }
 
-  return c;
- }
+  context.setComplete(true);
 
- private Agent getAgent(String name) {
-  Agent agent = agentMap.get(name);
-  if(agent == null){
-   throw new IllegalStateException("No agent registered with name: " + name);
-  }
-  return agent;
+  log.info(
+          "Agent Orchestration Completed. Total Issues={}",
+          context.getReviewIssues().size()
+  );
+
+  return context;
  }
 }
