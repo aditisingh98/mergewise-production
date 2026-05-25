@@ -7,8 +7,11 @@ import com.mergewise.context.AgentContext;
 public class PlannerAgent implements Agent{
  public String getName(){return "PLANNER";}
  public void execute(AgentContext c){
-  if(c.getIssues().isEmpty()){c.getMetadata().put("next","NPE");return;}
-  if(c.getIssues().size()<3){c.getMetadata().put("next","QUALITY");return;}
+  if(!Boolean.TRUE.equals(c.getMetadata().get("codeReviewComplete"))){
+   c.getMetadata().put("next","CODE_REVIEW");
+   return;
+  }
+  c.getMetadata().remove("codeReviewComplete");
   c.setComplete(true);
  }
 }
