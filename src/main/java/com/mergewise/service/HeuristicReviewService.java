@@ -38,7 +38,7 @@ public class HeuristicReviewService {
    return;
   }
 
-  String filename = change.getFilename();
+  String filename = change.getFilename() != null ? change.getFilename() : "unknown";
   String[] lines = patch.split("\\R");
 
   for (int i = 0; i < lines.length; i++) {
@@ -129,6 +129,9 @@ public class HeuristicReviewService {
  }
 
  private boolean isIgnoredDereference(String code, String value) {
+  if (value == null || value.isEmpty()) {
+   return true;
+  }
   return code.startsWith("import ")
           || code.contains("System.out.")
           || code.contains("System.err.")

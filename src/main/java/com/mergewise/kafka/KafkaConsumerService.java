@@ -12,8 +12,6 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +19,7 @@ import java.util.stream.Collectors;
 public class KafkaConsumerService {
 
  private final AgentOrchestrator orchestrator;
+
  private final GitHubService gitHubService;
 
  @KafkaListener(
@@ -30,31 +29,43 @@ public class KafkaConsumerService {
  public void consume(PRRequest req) {
 
   try {
+
    log.info("Received PR URL: {}", req.getPrUrl());
 
-   String repo = GitHubPRParser.extractRepo(req.getPrUrl());
+   String repo =
+           GitHubPRParser.extractRepo(req.getPrUrl());
 
-   Integer prNumber = GitHubPRParser.extractPRNumber(req.getPrUrl());
+   Integer prNumber =
+           GitHubPRParser.extractPRNumber(req.getPrUrl());
 
-   log.info("Repo = {}, PR Number = {}", repo, prNumber);
+   log.info(
+           "Repo = {}, PR Number = {}",
+           repo,
+           prNumber
+   );
 
    AgentContext context = new AgentContext();
 
    context.setRepo(repo);
+
    context.setPrNumber(prNumber);
 
-   List<PRFileChange> fileChanges = gitHubService.fetchFileChanges(repo, prNumber);
+   List<PRFileChange> fileChanges =
+           gitHubService.fetchFileChanges(repo, prNumber);
+
    context.setFileChanges(fileChanges);
-   context.setFiles(fileChanges.stream()
-           .map(PRFileChange::getPatch)
-           .filter(Objects::nonNull)
-           .collect(Collectors.toList()));
 
    orchestrator.run(context);
 
    log.info("Final Analysis = {}", context);
+
   } catch (Exception ex) {
-   log.error("PR analysis failed: {}", ex.getMessage(), ex);
+
+   log.error(
+           "PR analysis failed: {}",
+           ex.getMessage(),
+           ex
+   );
   }
  }
 }
