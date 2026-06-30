@@ -7,7 +7,7 @@ services:
     runtime: docker
     plan: free
     region: oregon
-    branch: main
+    branch: develop
     dockerfilePath: ./Dockerfile
     healthCheckPath: /actuator/health
     autoDeploy: true
