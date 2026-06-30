@@ -1,0 +1,27 @@
+{
+  "serviceName": "mergewise-api",
+  "sourceConfiguration": {
+    "imageRepository": {
+      "imageIdentifier": "<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/mergewise:latest",
+      "imageRepositoryType": "ECR"
+    },
+    "autoDeploymentsEnabled": true
+  },
+  "instanceConfiguration": {
+    "cpu": "1 vCPU",
+    "memory": "2 GB"
+  },
+  "healthCheckConfiguration": {
+    "protocol": "HTTP",
+    "path": "/actuator/health",
+    "interval": 10,
+    "timeout": 5,
+    "healthyThreshold": 1,
+    "unhealthyThreshold": 5
+  },
+  "networkConfiguration": {
+    "ingressConfiguration": {
+      "isPubliclyAccessible": true
+    }
+  }
+}

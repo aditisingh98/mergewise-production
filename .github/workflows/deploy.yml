@@ -1,0 +1,37 @@
+name: Build and Deploy MergeWise
+
+on:
+  push:
+    branches: [main, master, cursor/enterprise-pr-review-platform]
+  pull_request:
+    branches: [main, master]
+
+env:
+  IMAGE_NAME: mergewise
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: maven
+
+      - name: Build and test
+        run: mvn -B clean verify
+
+      - name: Build Docker image
+        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+
+      - name: Print deployment URLs
+        run: |
+          echo "After deploying to Render/Railway/AWS:"
+          echo "  POST {PUBLIC_URL}/api/pr/analyze"
+          echo "  GET  {PUBLIC_URL}/actuator/health"
+          echo "  GET  {PUBLIC_URL}/swagger-ui.html"
+          echo "See DEPLOYMENT.md for platform-specific steps."
