@@ -1,5 +1,6 @@
 package com.mergewise.service;
 
+import com.mergewise.context.AgentContext;
 import com.mergewise.dto.PRFileChange;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,18 @@ public class OpenAIService {
           "You are a senior Java pull request reviewer. Review diffs for correctness, security, performance, maintainability, API behavior, tests, and NullPointerException risks. Return concise actionable findings only.",
           buildCodeReviewPrompt(fileChanges),
           "OpenAI returned no code review analysis."
+  );
+ }
+
+ public String analyzeExecutiveSummary(AgentContext context, String decision) {
+  if(!isConfigured()){
+   throw new IllegalStateException("OpenAI API key is not configured");
+  }
+
+  return chat(
+          "You are a principal engineer writing an executive PR review summary. Be concise, factual, and actionable in 3-5 sentences.",
+          buildExecutiveSummaryPrompt(context, decision),
+          "Executive summary unavailable."
   );
  }
 
@@ -143,6 +156,28 @@ public class OpenAIService {
           Pull request files:
           %s
           """.formatted(formatFileChanges(fileChanges));
+ }
+
+ private String buildExecutiveSummaryPrompt(AgentContext context, String decision) {
+  int issueCount = context.getReviewIssues() != null ? context.getReviewIssues().size() : 0;
+  return """
+          Write an executive summary for this pull request review.
+
+          Repository: %s
+          PR Number: %s
+          Risk Level: %s
+          Overall Score: %s
+          Total Issues: %d
+          Merge Decision: %s
+
+          Summarize business impact, key risks, and recommended next steps.
+          """.formatted(
+          context.getRepo(),
+          context.getPrNumber(),
+          context.getRiskLevel(),
+          context.getOverallScore(),
+          issueCount,
+          decision);
  }
 
  private String formatFileChanges(List<PRFileChange> fileChanges) {

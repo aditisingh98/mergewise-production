@@ -39,4 +39,6 @@ public class AgentContext {
  private String riskLevel;
 
  private String finalDecision;
+
+ private String decisionReasoning;
 }

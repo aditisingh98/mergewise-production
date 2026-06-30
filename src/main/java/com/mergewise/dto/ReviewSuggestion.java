@@ -1,6 +1,5 @@
 package com.mergewise.dto;
 
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,13 +9,13 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReviewIssue {
+public class ReviewSuggestion {
 
     private String id;
 
-    private String severity;
-
     private String category;
+
+    private String severity;
 
     private String file;
 
@@ -25,8 +24,6 @@ public class ReviewIssue {
     private String title;
 
     private String rootCause;
-
-    private String description;
 
     private String productionImpact;
 

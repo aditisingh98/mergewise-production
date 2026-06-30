@@ -6,68 +6,57 @@ import com.mergewise.agents.quality.QualityAgent;
 import com.mergewise.agents.review.CodeReviewAgent;
 import com.mergewise.context.AgentContext;
 import com.mergewise.dto.ReviewIssue;
+import com.mergewise.review.AdvancedReviewEngine;
+import com.mergewise.service.MergeDecisionEngine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AgentOrchestrator {
 
- private final PlannerAgent plannerAgent;
+    private final PlannerAgent plannerAgent;
+    private final CodeReviewAgent codeReviewAgent;
+    private final NpeAgent npeAgent;
+    private final QualityAgent qualityAgent;
+    private final AdvancedReviewEngine advancedReviewEngine;
+    private final MergeDecisionEngine mergeDecisionEngine;
 
- private final CodeReviewAgent codeReviewAgent;
+    public AgentContext run(AgentContext context) {
 
- private final NpeAgent npeAgent;
+        log.info("Starting Agent Orchestration");
 
- private final QualityAgent qualityAgent;
+        plannerAgent.execute(context);
+        codeReviewAgent.execute(context);
+        npeAgent.analyze(context);
+        qualityAgent.execute(context);
+        advancedReviewEngine.run(context);
 
- public AgentContext run(AgentContext context) {
+        List<ReviewIssue> reviewIssues = context.getReviewIssues();
+        if (reviewIssues == null) {
+            reviewIssues = List.of();
+        }
 
-  log.info("Starting Agent Orchestration");
+        MergeDecisionEngine.MergeDecision decision = mergeDecisionEngine.decide(context);
+        context.setFinalDecision(decision.getDecision());
+        context.setDecisionReasoning(decision.getReasoning());
 
-  plannerAgent.execute(context);
+        // Legacy alias for clients expecting CHANGES_REQUIRED
+        if ("NEEDS_CHANGES".equals(decision.getDecision())) {
+            context.getMetadata().put("legacyFinalDecision", "CHANGES_REQUIRED");
+        }
 
-  codeReviewAgent.execute(context);
+        context.setComplete(true);
 
-  npeAgent.analyze(context);
+        log.info(
+                "Agent Orchestration Completed. Decision={}, Total Issues={}",
+                decision.getDecision(),
+                reviewIssues.size());
 
-  qualityAgent.execute(context);
-
-  // STEP 4 → FINAL DECISION
-
-  List<ReviewIssue> reviewIssues = context.getReviewIssues();
-  if (reviewIssues == null || reviewIssues.isEmpty()) {
-
-   context.setFinalDecision("APPROVE");
-
-  } else {
-
-   boolean criticalIssuePresent =
-           reviewIssues
-                   .stream()
-                   .anyMatch(issue ->
-                           "CRITICAL".equalsIgnoreCase(
-                                   issue.getSeverity()
-                           )
-                   );
-
-   if (criticalIssuePresent) {
-    context.setFinalDecision("BLOCK_MERGE");
-   } else {
-    context.setFinalDecision("CHANGES_REQUIRED");
-   }
-  }
-
-  context.setComplete(true);
-
-  log.info(
-          "Agent Orchestration Completed. Total Issues={}",
-          reviewIssues.size()
-  );
-
-  return context;
- }
+        return context;
+    }
 }
