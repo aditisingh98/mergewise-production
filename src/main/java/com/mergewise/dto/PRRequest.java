@@ -31,4 +31,12 @@ public class PRRequest {
     )
     @JsonProperty("gitlabToken")
     private String gitlabToken;
+
+    @Schema(
+            description = "Optional unified access token. Used for the detected provider when "
+                    + "githubToken/gitlabToken is not set. Prefer githubToken or gitlabToken when both platforms are used.",
+            example = "ghp_xxx or glpat-xxx"
+    )
+    @JsonProperty("accessToken")
+    private String accessToken;
 }

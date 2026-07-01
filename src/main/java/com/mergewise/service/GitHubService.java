@@ -33,15 +33,19 @@ public class GitHubService {
     }
 
     public List<PRFileChange> fetchFileChanges(String repo, Integer prNumber) {
-        return fetchFileChanges(repo, prNumber, null, null);
+        return fetchFileChanges(repo, prNumber, null, null, null);
     }
 
     public List<PRFileChange> fetchFileChanges(
             String repo,
             Integer prNumber,
-            String bodyToken,
+            String githubToken,
+            String accessToken,
             String authorizationHeader) {
-        String effectiveToken = GitHubTokenResolver.resolve(bodyToken, authorizationHeader, token);
+        String effectiveToken = GitHubTokenResolver.resolve(
+                VcsAuthResolver.firstNonBlank(githubToken, accessToken),
+                authorizationHeader,
+                token);
 
         String url = "https://api.github.com/repos/" + repo +
                 "/pulls/" + prNumber + "/files?per_page=100";

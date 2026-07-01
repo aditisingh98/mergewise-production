@@ -29,10 +29,14 @@ public class GitLabService {
 
     public List<PRFileChange> fetchFileChanges(
             GitLabMergeRequestRef ref,
-            String bodyToken,
+            String gitlabToken,
+            String accessToken,
             String authorizationHeader) {
 
-        String effectiveToken = GitHubTokenResolver.resolve(bodyToken, authorizationHeader, serverToken);
+        String effectiveToken = GitHubTokenResolver.resolve(
+                VcsAuthResolver.firstNonBlank(gitlabToken, accessToken),
+                authorizationHeader,
+                serverToken);
         String encodedProject = URLEncoder.encode(ref.projectPath(), StandardCharsets.UTF_8);
         String url = ref.apiBaseUrl() + "/projects/" + encodedProject
                 + "/merge_requests/" + ref.mergeRequestIid() + "/changes";

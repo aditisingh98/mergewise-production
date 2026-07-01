@@ -43,7 +43,8 @@ public final class GitLabMRParser {
             throw invalidFormat();
         }
 
-        return new GitLabMergeRequestRef(uri.getHost(), projectPath, Integer.parseInt(iid));
+        String scheme = uri.getScheme() != null ? uri.getScheme() : "https";
+        return new GitLabMergeRequestRef(scheme, uri.getHost(), projectPath, Integer.parseInt(iid));
     }
 
     private static String stripLeadingSlash(String value) {

@@ -13,6 +13,7 @@ class GitLabMRParserTest {
                 "https://gitlab.intelligrape.net/bharti-axa/proposal-service/-/merge_requests/7485");
 
         assertEquals("gitlab.intelligrape.net", ref.host());
+        assertEquals("https", ref.scheme());
         assertEquals("bharti-axa/proposal-service", ref.projectPath());
         assertEquals(7485, ref.mergeRequestIid());
         assertEquals("https://gitlab.intelligrape.net/api/v4", ref.apiBaseUrl());

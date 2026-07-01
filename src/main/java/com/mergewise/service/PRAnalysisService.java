@@ -11,6 +11,7 @@ import com.mergewise.vcs.VcsProvider;
 import com.mergewise.vcs.VcsProviderDetector;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -25,6 +26,12 @@ public class PRAnalysisService {
     private final AISummaryService aiSummaryService;
     private final PRAnalysisResponseMapper responseMapper;
 
+    @Value("${github.token:}")
+    private String githubServerToken;
+
+    @Value("${gitlab.token:}")
+    private String gitlabServerToken;
+
     public PRAnalysisResponse analyze(PRRequest request) {
         return analyze(request, null);
     }
@@ -34,6 +41,7 @@ public class PRAnalysisService {
 
         AgentContext context = new AgentContext();
         context.getMetadata().put("vcsProvider", provider.name());
+        context.getMetadata().put("tokenField", provider == VcsProvider.GITHUB ? "githubToken" : "gitlabToken");
 
         List<PRFileChange> fileChanges = switch (provider) {
             case GITHUB -> fetchGitHubChanges(request, authorizationHeader, context);
@@ -59,17 +67,17 @@ public class PRAnalysisService {
         String repo = GitHubPRParser.extractRepo(request.getPrUrl());
         Integer prNumber = GitHubPRParser.extractPRNumber(request.getPrUrl());
 
-        String userToken = GitHubTokenResolver.resolve(
-                request.getGithubToken(),
-                authorizationHeader,
-                null);
+        String userToken = VcsAuthResolver.resolveGitHubToken(request, authorizationHeader, null);
+        String effectiveToken = VcsAuthResolver.resolveGitHubToken(
+                request, authorizationHeader, githubServerToken);
 
         context.setRepo(repo);
         context.setPrNumber(prNumber);
-        context.getMetadata().put("usedRequestVcsToken", userToken != null);
+        context.getMetadata().put("authMode",
+                VcsAuthResolver.authMode(userToken, githubServerToken, effectiveToken));
 
         return gitHubService.fetchFileChanges(
-                repo, prNumber, request.getGithubToken(), authorizationHeader);
+                repo, prNumber, request.getGithubToken(), request.getAccessToken(), authorizationHeader);
     }
 
     private List<PRFileChange> fetchGitLabChanges(
@@ -79,16 +87,17 @@ public class PRAnalysisService {
 
         GitLabMergeRequestRef ref = GitLabMRParser.parse(request.getPrUrl());
 
-        String userToken = GitHubTokenResolver.resolve(
-                request.getGitlabToken(),
-                authorizationHeader,
-                null);
+        String userToken = VcsAuthResolver.resolveGitLabToken(request, authorizationHeader, null);
+        String effectiveToken = VcsAuthResolver.resolveGitLabToken(
+                request, authorizationHeader, gitlabServerToken);
 
         context.setRepo(ref.projectPath());
         context.setPrNumber(ref.mergeRequestIid());
         context.getMetadata().put("gitlabHost", ref.host());
-        context.getMetadata().put("usedRequestVcsToken", userToken != null);
+        context.getMetadata().put("authMode",
+                VcsAuthResolver.authMode(userToken, gitlabServerToken, effectiveToken));
 
-        return gitLabService.fetchFileChanges(ref, request.getGitlabToken(), authorizationHeader);
+        return gitLabService.fetchFileChanges(
+                ref, request.getGitlabToken(), request.getAccessToken(), authorizationHeader);
     }
 }
