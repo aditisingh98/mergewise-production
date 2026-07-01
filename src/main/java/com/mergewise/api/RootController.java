@@ -25,7 +25,13 @@ public class RootController {
         body.put("analyze", Map.of(
                 "method", "POST",
                 "url", info.getAnalyzeEndpoint(),
-                "body", Map.of("prUrl", "https://github.com/owner/repo/pull/123")
+                "body", Map.of(
+                        "prUrl", "https://github.com/owner/repo/pull/123",
+                        "githubToken", "(optional — required for private repos)"
+                ),
+                "headers", Map.of(
+                        "Authorization", "Bearer <github-token> (optional alternative to githubToken)"
+                )
         ));
         body.put("health", info.getHealthCheckUrl());
         body.put("swagger", info.getSwaggerUrl());

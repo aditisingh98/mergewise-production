@@ -21,16 +21,28 @@ public class PRAnalysisService {
     private final AISummaryService aiSummaryService;
     private final PRAnalysisResponseMapper responseMapper;
 
-    public PRAnalysisResponse analyze(@Valid PRRequest request) {
+    public PRAnalysisResponse analyze(PRRequest request) {
+        return analyze(request, null);
+    }
+
+    public PRAnalysisResponse analyze(@Valid PRRequest request, String authorizationHeader) {
         String repo = GitHubPRParser.extractRepo(request.getPrUrl());
         Integer prNumber = GitHubPRParser.extractPRNumber(request.getPrUrl());
+
+        String userToken = GitHubTokenResolver.resolve(
+                request.getGithubToken(),
+                authorizationHeader,
+                null);
 
         AgentContext context = new AgentContext();
         context.setRepo(repo);
         context.setPrNumber(prNumber);
 
-        List<PRFileChange> fileChanges = gitHubService.fetchFileChanges(repo, prNumber);
+        List<PRFileChange> fileChanges = gitHubService.fetchFileChanges(
+                repo, prNumber, request.getGithubToken(), authorizationHeader);
         context.setFileChanges(fileChanges);
+
+        context.getMetadata().put("usedRequestGitHubToken", userToken != null);
 
         context = orchestrator.run(context);
 

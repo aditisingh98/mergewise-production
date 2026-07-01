@@ -4,6 +4,8 @@ import com.mergewise.dto.PRAnalysisResponse;
 import com.mergewise.dto.PRRequest;
 import com.mergewise.service.PRAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +20,19 @@ public class PRController {
     private final PRAnalysisService prAnalysisService;
 
     @PostMapping("/analyze")
-    @Operation(summary = "Analyze a GitHub pull request", description = "Runs multi-agent enterprise review and returns scores, suggestions, and merge decision")
-    public PRAnalysisResponse analyze(@Valid @RequestBody PRRequest req) {
-        return prAnalysisService.analyze(req);
+    @Operation(
+            summary = "Analyze a GitHub pull request",
+            description = "Runs multi-agent enterprise review. Public repos need only prUrl. "
+                    + "For private repos, send githubToken in the body or Authorization: Bearer <token>."
+    )
+    public PRAnalysisResponse analyze(
+            @Valid @RequestBody PRRequest req,
+            @Parameter(
+                    name = "Authorization",
+                    in = ParameterIn.HEADER,
+                    description = "Optional GitHub PAT: Bearer <token> (for private repositories)"
+            )
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return prAnalysisService.analyze(req, authorization);
     }
 }

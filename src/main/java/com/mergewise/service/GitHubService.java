@@ -33,6 +33,16 @@ public class GitHubService {
     }
 
     public List<PRFileChange> fetchFileChanges(String repo, Integer prNumber) {
+        return fetchFileChanges(repo, prNumber, null, null);
+    }
+
+    public List<PRFileChange> fetchFileChanges(
+            String repo,
+            Integer prNumber,
+            String bodyToken,
+            String authorizationHeader) {
+        String effectiveToken = GitHubTokenResolver.resolve(bodyToken, authorizationHeader, token);
+
         String url = "https://api.github.com/repos/" + repo +
                 "/pulls/" + prNumber + "/files?per_page=100";
         WebClient.RequestHeadersSpec<?> request = webClient.get()
@@ -41,8 +51,8 @@ public class GitHubService {
                 .header(HttpHeaders.USER_AGENT, "mergewise")
                 .header("X-GitHub-Api-Version", "2022-11-28");
 
-        if (token != null && !token.isBlank()) {
-            request = request.header(HttpHeaders.AUTHORIZATION, "Bearer " + token.trim());
+        if (effectiveToken != null) {
+            request = request.header(HttpHeaders.AUTHORIZATION, "Bearer " + effectiveToken);
         }
 
         List<GitHubFileResponse> response;
@@ -54,7 +64,13 @@ public class GitHubService {
         } catch (WebClientResponseException.NotFound ex) {
             throw new IllegalArgumentException(
                     "GitHub returned 404 for " + repo + " pull request #" + prNumber
-                            + ". Check that the repository and PR exist, and that GITHUB_TOKEN has access if the repository is private.",
+                            + ". Check that the repository and PR exist. For private repositories, "
+                            + "provide githubToken in the request body or Authorization: Bearer <token>.",
+                    ex);
+        } catch (WebClientResponseException.Unauthorized ex) {
+            throw new IllegalArgumentException(
+                    "GitHub rejected the access token (401 Unauthorized). "
+                            + "Verify the token has repo scope and access to " + repo + ".",
                     ex);
         } catch (WebClientResponseException ex) {
             throw new IllegalStateException(
