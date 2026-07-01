@@ -16,11 +16,19 @@ public class PRRequest {
     private String prUrl;
 
     @Schema(
-            description = "Optional GitHub PAT for private repositories. "
-                    + "Can also be sent via Authorization: Bearer <token>. "
-                    + "Public repos work without a token.",
+            description = "Optional GitHub PAT for private GitHub repositories. "
+                    + "Ignored for GitLab URLs. Can also use Authorization: Bearer <token>.",
             example = "ghp_xxxxxxxxxxxx"
     )
     @JsonProperty("githubToken")
     private String githubToken;
+
+    @Schema(
+            description = "Optional GitLab personal access token for private GitLab merge requests. "
+                    + "Required for most self-hosted/private GitLab projects. "
+                    + "Can also use Authorization: Bearer <token>.",
+            example = "glpat-xxxxxxxxxxxx"
+    )
+    @JsonProperty("gitlabToken")
+    private String gitlabToken;
 }

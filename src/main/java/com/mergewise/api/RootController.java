@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -22,15 +23,24 @@ public class RootController {
         body.put("service", "MergeWise AI Review API");
         body.put("status", "UP");
         body.put("version", "1.0.0");
+        body.put("supportedProviders", List.of("GITHUB", "GITLAB"));
         body.put("analyze", Map.of(
                 "method", "POST",
                 "url", info.getAnalyzeEndpoint(),
-                "body", Map.of(
-                        "prUrl", "https://github.com/owner/repo/pull/123",
-                        "githubToken", "(optional — required for private repos)"
+                "examples", List.of(
+                        Map.of(
+                                "provider", "GITHUB",
+                                "prUrl", "https://github.com/owner/repo/pull/123",
+                                "tokenField", "githubToken (optional for public repos)"
+                        ),
+                        Map.of(
+                                "provider", "GITLAB",
+                                "prUrl", "https://gitlab.example.com/group/project/-/merge_requests/123",
+                                "tokenField", "gitlabToken (required for private/self-hosted GitLab)"
+                        )
                 ),
                 "headers", Map.of(
-                        "Authorization", "Bearer <github-token> (optional alternative to githubToken)"
+                        "Authorization", "Bearer <token> (optional alternative to githubToken/gitlabToken)"
                 )
         ));
         body.put("health", info.getHealthCheckUrl());

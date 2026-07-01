@@ -21,9 +21,10 @@ public class PRController {
 
     @PostMapping("/analyze")
     @Operation(
-            summary = "Analyze a GitHub pull request",
-            description = "Runs multi-agent enterprise review. Public repos need only prUrl. "
-                    + "For private repos, send githubToken in the body or Authorization: Bearer <token>."
+            summary = "Analyze a GitHub pull request or GitLab merge request",
+            description = "Supports GitHub (github.com/.../pull/N) and GitLab (.../merge_requests/N). "
+                    + "Public GitHub repos need only prUrl. Private repos need githubToken or gitlabToken, "
+                    + "or Authorization: Bearer <token>."
     )
     public PRAnalysisResponse analyze(
             @Valid @RequestBody PRRequest req,
