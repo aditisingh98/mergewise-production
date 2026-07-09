@@ -29,9 +29,19 @@ public class AISummaryService {
         if (openAIService.isConfigured()) {
             try {
                 aiOverview = openAIService.analyzeExecutiveSummary(context, decision);
+                if (AiReviewSupport.isInfrastructureMessage(aiOverview)) {
+                    context.getMetadata().put("aiSummaryStatus", "RATE_LIMITED");
+                    context.getMetadata().put("aiSummaryMessage", aiOverview);
+                    aiOverview = null;
+                }
+            } catch (AiProviderException ex) {
+                log.warn("AI executive summary skipped ({}): {}", ex.getStatus(), ex.getMessage());
+                context.getMetadata().put("aiSummaryStatus", ex.getStatus());
+                context.getMetadata().put("aiSummaryMessage", ex.getMessage());
             } catch (Exception ex) {
                 log.warn("AI executive summary failed: {}", ex.getMessage());
-                context.getMetadata().put("aiSummaryError", ex.getMessage());
+                context.getMetadata().put("aiSummaryStatus", "FAILED");
+                context.getMetadata().put("aiSummaryMessage", ex.getMessage());
             }
         }
 

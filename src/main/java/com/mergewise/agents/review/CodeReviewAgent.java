@@ -3,10 +3,13 @@ package com.mergewise.agents.review;
 import com.mergewise.agents.core.Agent;
 import com.mergewise.context.AgentContext;
 import com.mergewise.dto.ReviewIssue;
+import com.mergewise.service.AiProviderException;
+import com.mergewise.service.AiReviewSupport;
 import com.mergewise.service.HeuristicReviewService;
 import com.mergewise.service.OpenAIService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -34,6 +37,9 @@ public class CodeReviewAgent implements Agent {
 
  private final OpenAIService openAIService;
  private final HeuristicReviewService heuristicReviewService;
+
+ @Value("${mergewise.ai.review-enabled:true}")
+ private boolean aiReviewEnabled;
 
  @Override
  public String getName() {
@@ -64,8 +70,15 @@ public class CodeReviewAgent implements Agent {
  }
 
  private void appendAiReview(AgentContext context) {
+  if (!aiReviewEnabled) {
+   context.getMetadata().put("aiReviewEnabled", false);
+   context.getMetadata().put("aiReviewStatus", "DISABLED");
+   return;
+  }
+
   if (!openAIService.isConfigured()) {
    context.getMetadata().put("aiReviewEnabled", false);
+   context.getMetadata().put("aiReviewStatus", "NOT_CONFIGURED");
    return;
   }
 
@@ -73,25 +86,29 @@ public class CodeReviewAgent implements Agent {
   String analysis;
   try {
    analysis = openAIService.analyzeCodeReview(context.getFileChanges());
+  } catch (AiProviderException ex) {
+   log.warn("AI code review skipped ({}): {}", ex.getStatus(), ex.getMessage());
+   recordAiFailure(context, ex.getStatus(), ex.getMessage());
+   return;
   } catch (Exception ex) {
    log.warn("AI code review failed: {}", ex.getMessage());
-   context.getReviewIssues().add(ReviewIssue.builder()
-           .id(UUID.randomUUID().toString())
-           .severity("MEDIUM")
-           .category("AI_REVIEW")
-           .file("—")
-           .line(0)
-           .title("AI code review request failed")
-           .description(ex.getMessage())
-           .productionImpact("AI review did not complete; heuristic findings may still apply.")
-           .fixRecommendation("Check OPENAI_BASE_URL, OPENAI_API_KEY, OPENAI_MODEL, billing, and rate limits.")
-           .fixedCodeExample("")
-           .confidenceScore(100)
-           .build());
+   recordAiFailure(context, "FAILED", ex.getMessage());
    return;
   }
 
+  if (AiReviewSupport.isInfrastructureMessage(analysis)) {
+   log.warn("AI code review returned infrastructure message; ignoring as PR finding.");
+   recordAiFailure(context, "RATE_LIMITED", analysis);
+   return;
+  }
+
+  context.getMetadata().put("aiReviewStatus", "COMPLETED");
   parseAiAnalysis(analysis, context);
+ }
+
+ private void recordAiFailure(AgentContext context, String status, String message) {
+  context.getMetadata().put("aiReviewStatus", status);
+  context.getMetadata().put("aiReviewMessage", message);
  }
 
  private void parseAiAnalysis(String analysis, AgentContext context) {
@@ -99,10 +116,15 @@ public class CodeReviewAgent implements Agent {
    return;
   }
 
+  if (AiReviewSupport.isInfrastructureMessage(analysis)) {
+   recordAiFailure(context, "RATE_LIMITED", analysis);
+   return;
+  }
+
   ReviewIssue pendingIssue = null;
   for (String raw : analysis.split("\\R")) {
    String line = raw.trim();
-   if (line.isBlank()) {
+   if (line.isBlank() || AiReviewSupport.isInfrastructureMessage(line)) {
     continue;
    }
 
@@ -114,6 +136,9 @@ public class CodeReviewAgent implements Agent {
     String severity = issueMatcher.group(1).toUpperCase();
     String file = issueMatcher.group(2).trim();
     String problem = issueMatcher.group(3).trim();
+    if (AiReviewSupport.isInfrastructureIssue("AI_REVIEW", file, problem, line)) {
+     continue;
+    }
     pendingIssue = ReviewIssue.builder()
             .id(UUID.randomUUID().toString())
             .severity(severity)
@@ -136,6 +161,10 @@ public class CodeReviewAgent implements Agent {
      context.getReviewIssues().add(pendingIssue);
     }
     String body = line.substring(6).trim();
+    if (AiReviewSupport.isInfrastructureMessage(body)) {
+     pendingIssue = null;
+     continue;
+    }
     pendingIssue = ReviewIssue.builder()
             .id(UUID.randomUUID().toString())
             .severity("MEDIUM")

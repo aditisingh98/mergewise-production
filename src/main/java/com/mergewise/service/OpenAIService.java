@@ -96,14 +96,14 @@ public class OpenAIService {
            .bodyToMono(OpenAIResponse.class)
            .block();
   } catch (WebClientResponseException.TooManyRequests ex) {
-   return "ISSUE: [medium] AI provider - " + model + " returned 429 Too Many Requests, so AI review could not complete."
-           + "\nSUGGESTION: AI provider - Check billing/quota/rate limits, wait and retry, or configure OPENAI_BASE_URL and OPENAI_MODEL for another OpenAI-compatible provider.";
+   throw new AiProviderException("RATE_LIMITED",
+           model + " returned 429 Too Many Requests. AI review skipped; heuristic analysis still runs.");
   } catch (WebClientResponseException.Unauthorized ex) {
-   return "ISSUE: [high] AI provider - The configured provider rejected the API key with 401 Unauthorized."
-           + "\nSUGGESTION: AI provider - Set a valid OPENAI_API_KEY for " + baseUrl + " and restart the application.";
+   throw new AiProviderException("UNAUTHORIZED",
+           "API key rejected with 401 Unauthorized for " + baseUrl);
   } catch (WebClientResponseException ex) {
-   return "ISSUE: [medium] AI provider - AI API request failed with " + ex.getStatusCode()
-           + "\nSUGGESTION: AI provider - Check OPENAI_BASE_URL, OPENAI_API_KEY, OPENAI_MODEL, account quota, and request size before retrying.";
+   throw new AiProviderException("API_ERROR",
+           "AI API request failed with " + ex.getStatusCode());
   }
 
   if(response == null || response.getChoices() == null || response.getChoices().isEmpty()

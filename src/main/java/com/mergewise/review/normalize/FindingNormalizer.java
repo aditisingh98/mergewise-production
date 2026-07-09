@@ -32,6 +32,10 @@ public class FindingNormalizer {
         Map<String, CanonicalFinding> merged = new LinkedHashMap<>();
 
         for (ReviewIssue issue : rawIssues) {
+            if (AiReviewSupport.isInfrastructureIssue(
+                    issue.getCategory(), issue.getFile(), issue.getTitle(), issue.getDescription())) {
+                continue;
+            }
             String tab = resolveTab(issue);
             String patternKey = detectPatternKey(issue);
             String fingerprint = fingerprint(tab, issue.getFile(), issue.getLine(), patternKey);
