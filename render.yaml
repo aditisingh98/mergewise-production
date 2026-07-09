@@ -30,6 +30,8 @@ services:
         value: gemini-2.0-flash
       - key: MERGEWISE_AI_REVIEW_ENABLED
         value: "false"
+      - key: MERGEWISE_AI_ENABLED
+        value: "false"
       - key: MERGEWISE_KAFKA_ENABLED
         value: "false"
       # MERGEWISE_PUBLIC_URL is auto-set from RENDER_EXTERNAL_URL via PublicUrlResolver

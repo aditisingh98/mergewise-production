@@ -2,33 +2,33 @@ package com.mergewise.service;
 
 import com.mergewise.context.AgentContext;
 import com.mergewise.dto.ReviewIssue;
-import com.mergewise.dto.review.CanonicalFinding;
-import com.mergewise.review.normalize.FindingNormalizer;
+import com.mergewise.dto.review.ReviewIssueModel;
+import com.mergewise.review.pipeline.IssueDeduplicator;
 import lombok.Builder;
 import lombok.Data;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class MergeDecisionEngine {
 
-    private final FindingNormalizer findingNormalizer;
+    private final IssueDeduplicator issueDeduplicator;
 
-    public MergeDecisionEngine(FindingNormalizer findingNormalizer) {
-        this.findingNormalizer = findingNormalizer;
+    public MergeDecisionEngine(IssueDeduplicator issueDeduplicator) {
+        this.issueDeduplicator = issueDeduplicator;
     }
 
     public MergeDecision decide(AgentContext context) {
-        List<ReviewIssue> raw = context.getReviewIssues() != null ? context.getReviewIssues() : List.of();
-        return decide(findingNormalizer.normalize(raw).getFindings());
+        return decide(issueDeduplicator.deduplicate(context.getReviewIssues()).getIssues());
     }
 
-    public MergeDecision decide(List<CanonicalFinding> findings) {
-        long critical = count(findings, "CRITICAL");
-        long high = count(findings, "HIGH");
-        long medium = count(findings, "MEDIUM");
-        long low = count(findings, "LOW");
+    public MergeDecision decide(List<ReviewIssueModel> issues) {
+        long critical = count(issues, "CRITICAL");
+        long high = count(issues, "HIGH");
+        long medium = count(issues, "MEDIUM");
+        long low = count(issues, "LOW");
 
         String decision;
         String reasoning;
@@ -36,22 +36,27 @@ public class MergeDecisionEngine {
         if (critical > 0) {
             decision = "BLOCK_MERGE";
             reasoning = String.format(
-                    "Blocked due to %d critical issue(s) including security, runtime, or data-integrity risks.",
+                    "Blocked: %d critical issue(s) threaten production stability, security, or data integrity.",
                     critical);
         } else if (high > 0) {
             decision = "NEEDS_CHANGES";
             reasoning = String.format(
-                    "%d high-severity issue(s) require fixes. Medium/low findings: %d/%d.",
+                    "%d high-severity issue(s) must be fixed. Additionally %d medium and %d low finding(s) remain.",
                     high, medium, low);
         } else if (medium > 0 || low > 0) {
             decision = "APPROVE_WITH_WARNINGS";
             reasoning = String.format(
-                    "No critical or high issues. %d medium and %d low findings can merge with follow-up.",
+                    "No blocking issues. %d medium and %d low finding(s) can be addressed after merge.",
                     medium, low);
         } else {
             decision = "APPROVE";
-            reasoning = "No blocking or warning-level issues detected.";
+            reasoning = "No code issues detected. Safe to merge from an automated review perspective.";
         }
+
+        List<String> blockingIds = issues.stream()
+                .filter(i -> Boolean.TRUE.equals(i.getBlocking()))
+                .map(ReviewIssueModel::getId)
+                .collect(Collectors.toList());
 
         return MergeDecision.builder()
                 .decision(decision)
@@ -60,11 +65,12 @@ public class MergeDecisionEngine {
                 .highCount((int) high)
                 .mediumCount((int) medium)
                 .lowCount((int) low)
+                .blockingIssueIds(blockingIds)
                 .build();
     }
 
-    private long count(List<CanonicalFinding> findings, String severity) {
-        return findings.stream().filter(i -> severity.equalsIgnoreCase(i.getSeverity())).count();
+    private long count(List<ReviewIssueModel> issues, String severity) {
+        return issues.stream().filter(i -> severity.equalsIgnoreCase(i.getSeverity())).count();
     }
 
     @Data
@@ -76,5 +82,6 @@ public class MergeDecisionEngine {
         private int highCount;
         private int mediumCount;
         private int lowCount;
+        private List<String> blockingIssueIds;
     }
 }

@@ -23,7 +23,6 @@ public class PRAnalysisService {
     private final GitHubService gitHubService;
     private final GitLabService gitLabService;
     private final AgentOrchestrator orchestrator;
-    private final AISummaryService aiSummaryService;
     private final PRAnalysisResponseMapper responseMapper;
 
     @Value("${github.token:}")
@@ -50,13 +49,7 @@ public class PRAnalysisService {
 
         context.setFileChanges(fileChanges);
         context = orchestrator.run(context);
-
-        var summary = aiSummaryService.buildSummary(
-                context,
-                context.getFinalDecision(),
-                context.getDecisionReasoning());
-
-        return responseMapper.fromContext(context, summary);
+        return responseMapper.fromContext(context);
     }
 
     private List<PRFileChange> fetchGitHubChanges(

@@ -21,38 +21,29 @@ public class PRAnalysisResponse {
 
     private DeploymentInfo deploymentInfo;
 
-    private ReviewSummarySection summary;
-
-    @Builder.Default
-    private List<ScoreGuideEntry> scoreGuide = new ArrayList<>();
-
-    private ScoresSection scores;
-
-    private DashboardSection dashboard;
-
-    private CriticalSection critical;
-
-    private SecuritySection security;
-
-    private RuntimeSection runtime;
-
-    private PerformanceSection performance;
-
-    private MaintainabilitySection maintainability;
-
-    private ArchitectureSection architecture;
-
-    private TestingSection testing;
-
-    private AiSuggestionsSection aiSuggestions;
-
-    @Builder.Default
-    private List<FileReviewItem> files = new ArrayList<>();
-
-    private MetricsSection metrics;
+    private DashboardView dashboard;
 
     private MergeDecisionDetail mergeDecision;
 
+    private FixFirstSection fixFirst;
+
+    private IssueExplorerSection issueExplorer;
+
+    private ScoresSection scores;
+
     @Builder.Default
-    private List<CanonicalFinding> rawFindings = new ArrayList<>();
+    private List<FileReviewRef> files = new ArrayList<>();
+
+    @Builder.Default
+    private List<ReviewIssueModel> issues = new ArrayList<>();
+
+    private TestingView testing;
+
+    private ArchitectureView architecture;
+
+    private MetricsSection metrics;
+
+    private ReviewSummaries summaries;
+
+    private SystemStatus systemStatus;
 }

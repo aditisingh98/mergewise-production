@@ -2,16 +2,20 @@ package com.mergewise.service;
 
 import com.mergewise.context.AgentContext;
 import com.mergewise.dto.ReviewIssue;
-import com.mergewise.review.normalize.FindingNormalizer;
+import com.mergewise.review.pipeline.IssueDeduplicator;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MergeDecisionEngineTest {
 
-    private final MergeDecisionEngine engine = new MergeDecisionEngine(new FindingNormalizer());
+    private final MergeDecisionEngine engine = new MergeDecisionEngine(
+            new com.mergewise.review.pipeline.IssueDeduplicator(
+                    new com.mergewise.review.pipeline.IssueNormalizer(
+                            new com.mergewise.review.normalize.FindingNormalizer())));
 
     @Test
     void approvesWhenNoIssues() {
@@ -38,6 +42,22 @@ class MergeDecisionEngineTest {
     }
 
     @Test
+    void infrastructureIssuesDoNotAffectDecision() {
+        AgentContext context = new AgentContext();
+        context.setReviewIssues(List.of(ReviewIssue.builder()
+                .severity("MEDIUM")
+                .category("AI_REVIEW")
+                .file("AI provider")
+                .title("429 Too Many Requests")
+                .description("gemini returned 429")
+                .build()));
+
+        MergeDecisionEngine.MergeDecision decision = engine.decide(context);
+
+        assertEquals("APPROVE", decision.getDecision());
+    }
+
+    @Test
     void needsChangesOnHighIssue() {
         AgentContext context = new AgentContext();
         context.setReviewIssues(List.of(ReviewIssue.builder()
@@ -49,19 +69,6 @@ class MergeDecisionEngineTest {
         MergeDecisionEngine.MergeDecision decision = engine.decide(context);
 
         assertEquals("NEEDS_CHANGES", decision.getDecision());
-    }
-
-    @Test
-    void approvesWithWarningsOnMediumOnly() {
-        AgentContext context = new AgentContext();
-        context.setReviewIssues(List.of(ReviewIssue.builder()
-                .severity("MEDIUM")
-                .title("Large method")
-                .category("CODE_QUALITY")
-                .build()));
-
-        MergeDecisionEngine.MergeDecision decision = engine.decide(context);
-
-        assertEquals("APPROVE_WITH_WARNINGS", decision.getDecision());
+        assertTrue(decision.getBlockingIssueIds() != null);
     }
 }

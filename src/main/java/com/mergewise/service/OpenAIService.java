@@ -36,27 +36,60 @@ public class OpenAIService {
  }
 
  public String analyzeCodeReview(List<PRFileChange> fileChanges) {
-  if(!isConfigured()){
-   throw new IllegalStateException("OpenAI API key is not configured");
+  return analyzeCodeReviewWithConfig(baseUrl, model, apiKey, fileChanges);
+ }
+
+ public String analyzeCodeReviewWithConfig(
+         String providerBaseUrl,
+         String providerModel,
+         String providerApiKey,
+         List<PRFileChange> fileChanges) {
+  if (providerApiKey == null || providerApiKey.isBlank()) {
+   throw new IllegalStateException("AI API key is not configured");
   }
 
-  return chat(
+  return chatWithConfig(
+          providerBaseUrl,
+          providerModel,
+          providerApiKey,
           "You are a senior Java pull request reviewer. Review diffs for correctness, security, performance, maintainability, API behavior, tests, and NullPointerException risks. Return concise actionable findings only.",
           buildCodeReviewPrompt(fileChanges),
-          "OpenAI returned no code review analysis."
-  );
+          "OpenAI returned no code review analysis.");
  }
 
  public String analyzeExecutiveSummary(AgentContext context, String decision) {
-  if(!isConfigured()){
-   throw new IllegalStateException("OpenAI API key is not configured");
+  return analyzeExecutiveSummaryWithConfig(baseUrl, model, apiKey, context, decision);
+ }
+
+ public String analyzeExecutiveSummaryWithConfig(
+         String providerBaseUrl,
+         String providerModel,
+         String providerApiKey,
+         AgentContext context,
+         String decision) {
+  if (providerApiKey == null || providerApiKey.isBlank()) {
+   throw new IllegalStateException("AI API key is not configured");
   }
 
-  return chat(
+  return chatWithConfig(
+          providerBaseUrl,
+          providerModel,
+          providerApiKey,
           "You are a principal engineer writing an executive PR review summary. Be concise, factual, and actionable in 3-5 sentences.",
           buildExecutiveSummaryPrompt(context, decision),
-          "Executive summary unavailable."
-  );
+          "Executive summary unavailable.");
+ }
+
+ public String getModel() {
+  return model;
+ }
+
+ public String getBaseUrl() {
+  return baseUrl;
+ }
+
+ public String getApiKey() {
+  return apiKey;
  }
 
  public String analyzeNullPointerRisks(String patch) {
@@ -72,14 +105,24 @@ public class OpenAIService {
  }
 
  private String chat(String systemPrompt, String userPrompt, String emptyResponseMessage) {
+  return chatWithConfig(baseUrl, model, apiKey, systemPrompt, userPrompt, emptyResponseMessage);
+ }
+
+ private String chatWithConfig(
+         String providerBaseUrl,
+         String providerModel,
+         String providerApiKey,
+         String systemPrompt,
+         String userPrompt,
+         String emptyResponseMessage) {
   OpenAIResponse response;
   try {
    response = webClient.post()
-           .uri(chatCompletionsUrl())
-           .headers(headers -> addAuthorizationHeader(headers, apiKey))
+           .uri(chatCompletionsUrl(providerBaseUrl))
+           .headers(headers -> addAuthorizationHeader(headers, providerApiKey))
            .contentType(MediaType.APPLICATION_JSON)
            .bodyValue(Map.of(
-                   "model", model,
+                   "model", providerModel,
                    "temperature", 0,
                    "messages", List.of(
                            Map.of(
@@ -96,13 +139,13 @@ public class OpenAIService {
            .bodyToMono(OpenAIResponse.class)
            .block();
   } catch (WebClientResponseException.TooManyRequests ex) {
-   throw new AiProviderException("RATE_LIMITED",
-           model + " returned 429 Too Many Requests. AI review skipped; heuristic analysis still runs.");
+   throw new AiProviderException("RATE_LIMITED", 429,
+           providerModel + " returned 429 Too Many Requests. AI review skipped; heuristic analysis still runs.");
   } catch (WebClientResponseException.Unauthorized ex) {
-   throw new AiProviderException("UNAUTHORIZED",
-           "API key rejected with 401 Unauthorized for " + baseUrl);
+   throw new AiProviderException("UNAUTHORIZED", 401,
+           "API key rejected with 401 Unauthorized for " + providerBaseUrl);
   } catch (WebClientResponseException ex) {
-   throw new AiProviderException("API_ERROR",
+   throw new AiProviderException("API_ERROR", ex.getStatusCode().value(),
            "AI API request failed with " + ex.getStatusCode());
   }
 
@@ -114,8 +157,8 @@ public class OpenAIService {
   return response.getChoices().get(0).getMessage().getContent();
  }
 
- private String chatCompletionsUrl() {
-  return baseUrl.replaceAll("/+$", "") + "/chat/completions";
+ private String chatCompletionsUrl(String providerBaseUrl) {
+  return providerBaseUrl.replaceAll("/+$", "") + "/chat/completions";
  }
 
  private void addAuthorizationHeader(HttpHeaders headers, String token) {

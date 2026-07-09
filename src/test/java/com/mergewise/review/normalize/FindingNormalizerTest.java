@@ -1,6 +1,7 @@
 package com.mergewise.review.normalize;
 
 import com.mergewise.dto.ReviewIssue;
+import com.mergewise.review.normalize.FindingNormalizer;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

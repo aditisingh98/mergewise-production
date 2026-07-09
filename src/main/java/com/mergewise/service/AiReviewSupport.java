@@ -11,11 +11,13 @@ public final class AiReviewSupport {
         }
         String lower = text.toLowerCase();
         return lower.contains("ai provider")
-                || lower.contains("429 too many requests")
+                || lower.contains("429")
+                || lower.contains("too many requests")
                 || lower.contains("401 unauthorized")
                 || lower.contains("openai_api_key")
                 || lower.contains("rate limit")
                 || lower.contains("quota")
+                || lower.contains("gemini-")
                 || (lower.startsWith("issue:") && lower.contains("ai api request failed"));
     }
 

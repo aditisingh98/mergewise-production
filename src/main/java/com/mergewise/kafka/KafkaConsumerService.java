@@ -24,9 +24,9 @@ public class KafkaConsumerService {
         try {
             log.info("Received PR URL: {}", req.getPrUrl());
             var response = prAnalysisService.analyze(req);
-            log.info("PR analysis completed. Decision={}, Findings={}",
+            log.info("PR analysis completed. Decision={}, Issues={}",
                     response.getMergeDecision() != null ? response.getMergeDecision().getDecision() : "N/A",
-                    response.getRawFindings() != null ? response.getRawFindings().size() : 0);
+                    response.getIssues() != null ? response.getIssues().size() : 0);
         } catch (Exception ex) {
             log.error("PR analysis failed: {}", ex.getMessage(), ex);
         }
