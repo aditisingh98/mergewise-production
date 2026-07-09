@@ -303,15 +303,89 @@ Returns URL patterns, token field names, and JSON examples for each provider.
 
 ---
 
+## AI configuration (recommended)
+
+MergeWise uses **static analysis by default** and adds **optional AI insights** on top. If AI fails (429, quota, timeout), review still completes — failures appear in `systemStatus.aiReview`, not as code findings.
+
+### Recommended production setup: OpenAI `gpt-4o-mini`
+
+| Why | Detail |
+|-----|--------|
+| Code quality | Strong for PR review and security hints |
+| Reliability | Stable API, good rate limits on paid tier |
+| Cost | ~$0.01–0.05 per PR review |
+| Compatibility | Works with existing OpenAI-compatible client |
+
+### Render environment variables
+
+Set these in **Render Dashboard → mergewise-api → Environment**:
+
+| Variable | Value |
+|----------|--------|
+| `OPENAI_API_KEY` | Your OpenAI API key (**required** for AI) |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` |
+| `OPENAI_MODEL` | `gpt-4o-mini` |
+| `MERGEWISE_AI_ENABLED` | `true` |
+| `MERGEWISE_AI_REVIEW_ENABLED` | `true` |
+
+Optional fallback (if primary fails):
+
+| Variable | Value |
+|----------|--------|
+| `OPENAI_FALLBACK_API_KEY` | Backup OpenAI key (or same key) |
+| `OPENAI_FALLBACK_BASE_URL` | `https://api.openai.com/v1` |
+| `OPENAI_FALLBACK_MODEL` | `gpt-4o-mini` |
+
+### Demo without AI (no API key needed)
+
+For demos when you don't want any LLM calls:
+
+| Variable | Value |
+|----------|--------|
+| `MERGEWISE_AI_ENABLED` | `false` |
+| `MERGEWISE_AI_REVIEW_ENABLED` | `false` |
+
+Static analysis, security, testing, merge decision, and scores still work.
+
+### Alternative providers
+
+Any **OpenAI-compatible** chat-completions API works:
+
+| Provider | `OPENAI_BASE_URL` | `OPENAI_MODEL` |
+|----------|-------------------|----------------|
+| **OpenAI** (recommended) | `https://api.openai.com/v1` | `gpt-4o-mini` |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-2.0-flash` |
+| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
+
+Gemini free tier often hits **429 rate limits** — use OpenAI for production demos.
+
+### Local development
+
+```bash
+export OPENAI_API_KEY=sk-...
+export OPENAI_BASE_URL=https://api.openai.com/v1
+export OPENAI_MODEL=gpt-4o-mini
+export MERGEWISE_AI_ENABLED=true
+
+mvn spring-boot:run
+```
+
+---
+
 ## Environment variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `GITHUB_TOKEN` | Optional | Server fallback for private GitHub repos |
 | `GITLAB_TOKEN` | Optional | Server fallback for private GitLab merge requests |
-| `OPENAI_API_KEY` | Optional | API key for OpenAI-compatible LLM provider |
-| `OPENAI_BASE_URL` | Optional | LLM base URL (OpenAI, Groq, Gemini, Ollama) |
-| `OPENAI_MODEL` | Optional | Model name |
+| `OPENAI_API_KEY` | Optional | OpenAI API key (recommended for AI layer) |
+| `OPENAI_BASE_URL` | Optional | Default: `https://api.openai.com/v1` |
+| `OPENAI_MODEL` | Optional | Default: `gpt-4o-mini` |
+| `OPENAI_FALLBACK_API_KEY` | Optional | Fallback provider API key |
+| `OPENAI_FALLBACK_BASE_URL` | Optional | Fallback base URL (default: OpenAI) |
+| `OPENAI_FALLBACK_MODEL` | Optional | Fallback model (default: `gpt-4o-mini`) |
+| `MERGEWISE_AI_ENABLED` | Optional | Master AI switch (default: `true`) |
+| `MERGEWISE_AI_REVIEW_ENABLED` | Optional | AI code review switch (default: `true`) |
 | `MERGEWISE_PUBLIC_URL` | Prod | Public API base URL returned in `deploymentInfo` |
 | `MERGEWISE_CORS_ORIGINS` | Prod | Comma-separated allowed origins (default `*` in dev) |
 | `MERGEWISE_KAFKA_ENABLED` | Optional | Set to `false` to disable Kafka (default in prod) |
@@ -332,7 +406,9 @@ Returns URL patterns, token field names, and JSON examples for each provider.
 ```bash
 export GITHUB_TOKEN=ghp_...
 export GITLAB_TOKEN=glpat-...
-export OPENAI_API_KEY=...
+export OPENAI_API_KEY=sk-...
+export OPENAI_BASE_URL=https://api.openai.com/v1
+export OPENAI_MODEL=gpt-4o-mini
 
 mvn spring-boot:run
 ```
@@ -344,7 +420,9 @@ docker build -t mergewise:1.0.0 .
 docker run -p 8090:8090 \
   -e GITHUB_TOKEN=ghp_... \
   -e GITLAB_TOKEN=glpat-... \
-  -e OPENAI_API_KEY=... \
+  -e OPENAI_API_KEY=sk-... \
+  -e OPENAI_BASE_URL=https://api.openai.com/v1 \
+  -e OPENAI_MODEL=gpt-4o-mini \
   -e MERGEWISE_PUBLIC_URL=http://localhost:8090 \
   mergewise:1.0.0
 ```
@@ -383,7 +461,8 @@ const privateGl = await fetch(`${API_BASE}/api/pr/analyze`, {
 });
 
 const result = await publicGh.json();
-console.log(result.finalDecision, result.executiveSummary);
+console.log(result.mergeDecision?.decision, result.summaries?.executive);
+console.log(result.dashboard?.canMerge, result.fixFirst?.topIssueIds);
 ```
 
 ---
@@ -391,14 +470,10 @@ console.log(result.finalDecision, result.executiveSummary);
 ## Architecture
 
 ```
-PRController → PRAnalysisService → VcsProviderDetector
-                                 → GitHubService (GitHub)
-                                 → GitLabService (GitLab)
-                                 → AgentOrchestrator
-                                       → AdvancedReviewEngine
-                                       → MergeDecisionEngine
-                                 → AISummaryService
-                                 → PRAnalysisResponseMapper
+PRController → PRAnalysisService → ReviewEngine
+                                 → IssueDeduplicator → ReviewResponseBuilder
+                                 → AgentOrchestrator (static + AI analyzers)
+                                 → ProviderFallbackService (Gemini/OpenAI fallback)
 ```
 
 ---
@@ -410,7 +485,9 @@ PRController → PRAnalysisService → VcsProviderDetector
 | `401 Unauthorized` on GitHub | Invalid or expired `githubToken` | Remove token for public repos; use a valid PAT for private |
 | `401 Unauthorized` on GitLab | `githubToken` sent for a GitLab URL | Use `gitlabToken` or `accessToken` instead |
 | `404 Not Found` | Wrong URL or no access to project | Verify `prUrl`; add token for private repos |
-| `429` from AI provider | LLM rate limit | Heuristic review still runs; retry later or change model |
+| `429` / AI in `systemStatus` | LLM rate limit or quota | Review still completes; set `MERGEWISE_AI_ENABLED=false` for demo, or switch to OpenAI `gpt-4o-mini` |
+| `429` in `issues` array | Old deployment | Redeploy latest code; AI failures belong in `systemStatus` only |
+| GitLab timeout on Render | Internal/self-hosted GitLab | Run API on VPN/internal network, not public Render |
 
 ---
 

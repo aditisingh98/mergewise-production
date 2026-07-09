@@ -51,8 +51,18 @@ git push -u origin cursor/enterprise-pr-review-platform
 
 | Key | Value |
 |-----|-------|
-| `GITHUB_TOKEN` | Your GitHub PAT |
-| `OPENAI_API_KEY` | Your LLM API key |
+| `GITHUB_TOKEN` | Your GitHub PAT (optional; for private repos) |
+| `OPENAI_API_KEY` | Your OpenAI API key — **required for AI layer** |
+
+Recommended AI settings (also in `render.yaml`):
+
+| Key | Value |
+|-----|-------|
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` |
+| `OPENAI_MODEL` | `gpt-4o-mini` |
+| `MERGEWISE_AI_ENABLED` | `true` |
+
+For demo without AI, set `MERGEWISE_AI_ENABLED=false`.
 
 ### 4. Deploy
 

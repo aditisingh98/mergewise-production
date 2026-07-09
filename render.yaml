@@ -22,16 +22,26 @@ services:
         sync: false
       - key: GITLAB_TOKEN
         sync: false
+      # --- Recommended AI: OpenAI gpt-4o-mini (set OPENAI_API_KEY in Render dashboard) ---
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_BASE_URL
-        value: https://generativelanguage.googleapis.com/v1beta/openai
+        value: https://api.openai.com/v1
       - key: OPENAI_MODEL
-        value: gemini-2.0-flash
-      - key: MERGEWISE_AI_REVIEW_ENABLED
-        value: "false"
+        value: gpt-4o-mini
+      - key: OPENAI_MAX_PROMPT_CHARS
+        value: "4000"
       - key: MERGEWISE_AI_ENABLED
-        value: "false"
+        value: "true"
+      - key: MERGEWISE_AI_REVIEW_ENABLED
+        value: "true"
+      # Optional fallback (same provider or different key)
+      - key: OPENAI_FALLBACK_API_KEY
+        sync: false
+      - key: OPENAI_FALLBACK_BASE_URL
+        value: https://api.openai.com/v1
+      - key: OPENAI_FALLBACK_MODEL
+        value: gpt-4o-mini
       - key: MERGEWISE_KAFKA_ENABLED
         value: "false"
       # MERGEWISE_PUBLIC_URL is auto-set from RENDER_EXTERNAL_URL via PublicUrlResolver
