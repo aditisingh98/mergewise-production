@@ -2,25 +2,33 @@ package com.mergewise.service;
 
 import com.mergewise.context.AgentContext;
 import com.mergewise.dto.ReviewIssue;
+import com.mergewise.dto.review.CanonicalFinding;
+import com.mergewise.review.normalize.FindingNormalizer;
 import lombok.Builder;
 import lombok.Data;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class MergeDecisionEngine {
 
-    public MergeDecision decide(AgentContext context) {
-        List<ReviewIssue> issues = context.getReviewIssues() != null
-                ? context.getReviewIssues()
-                : List.of();
+    private final FindingNormalizer findingNormalizer;
 
-        long critical = count(issues, "CRITICAL");
-        long high = count(issues, "HIGH");
-        long medium = count(issues, "MEDIUM");
-        long low = count(issues, "LOW");
+    public MergeDecisionEngine(FindingNormalizer findingNormalizer) {
+        this.findingNormalizer = findingNormalizer;
+    }
+
+    public MergeDecision decide(AgentContext context) {
+        List<ReviewIssue> raw = context.getReviewIssues() != null ? context.getReviewIssues() : List.of();
+        return decide(findingNormalizer.normalize(raw).getFindings());
+    }
+
+    public MergeDecision decide(List<CanonicalFinding> findings) {
+        long critical = count(findings, "CRITICAL");
+        long high = count(findings, "HIGH");
+        long medium = count(findings, "MEDIUM");
+        long low = count(findings, "LOW");
 
         String decision;
         String reasoning;
@@ -28,21 +36,21 @@ public class MergeDecisionEngine {
         if (critical > 0) {
             decision = "BLOCK_MERGE";
             reasoning = String.format(
-                    "Blocked due to %d critical issue(s) including security, runtime, or data-integrity risks that must be resolved before production deployment.",
+                    "Blocked due to %d critical issue(s) including security, runtime, or data-integrity risks.",
                     critical);
         } else if (high > 0) {
             decision = "NEEDS_CHANGES";
             reasoning = String.format(
-                    "%d high-severity issue(s) require fixes. Medium/low findings: %d/%d. Address high-priority items and re-run analysis.",
+                    "%d high-severity issue(s) require fixes. Medium/low findings: %d/%d.",
                     high, medium, low);
         } else if (medium > 0 || low > 0) {
             decision = "APPROVE_WITH_WARNINGS";
             reasoning = String.format(
-                    "No critical or high issues. %d medium and %d low findings can be merged with documented follow-up.",
+                    "No critical or high issues. %d medium and %d low findings can merge with follow-up.",
                     medium, low);
         } else {
             decision = "APPROVE";
-            reasoning = "No blocking or warning-level issues detected. PR meets automated review criteria.";
+            reasoning = "No blocking or warning-level issues detected.";
         }
 
         return MergeDecision.builder()
@@ -55,10 +63,8 @@ public class MergeDecisionEngine {
                 .build();
     }
 
-    private long count(List<ReviewIssue> issues, String severity) {
-        return issues.stream()
-                .filter(i -> severity.equalsIgnoreCase(i.getSeverity()))
-                .count();
+    private long count(List<CanonicalFinding> findings, String severity) {
+        return findings.stream().filter(i -> severity.equalsIgnoreCase(i.getSeverity())).count();
     }
 
     @Data
