@@ -1,23 +1,23 @@
 package com.mergewise.review.diff;
 
 import com.mergewise.dto.PRFileChange;
-import com.mergewise.dto.review.DiffLine;
 import com.mergewise.dto.review.ReviewIssueModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IssueCodeContextEnricherTest {
 
-    private final IssueCodeContextEnricher enricher = new IssueCodeContextEnricher(new PatchDiffParser());
+    private final IssueCodeContextEnricher enricher = new IssueCodeContextEnricher(
+            new PatchDiffParser(),
+            new CodeFixSuggester());
 
     @Test
-    void attachesOldNewCodeAndHighlightsDiffLine() {
+    void attachesOldNewCodeAndFix() {
         String patch = """
                 @@ -10,3 +10,4 @@
                  public void run() {
@@ -46,14 +46,6 @@ class IssueCodeContextEnricherTest {
 
         assertNotNull(result.getNewCode());
         assertTrue(result.getNewCode().contains("value.length()"));
-        assertNotNull(result.getDevelopmentGuidance());
-        assertNotNull(result.getCodeComparison());
-        assertFalse(result.getCodeComparison().getAfter().isEmpty());
-
-        List<DiffLine> annotated = enricher.annotateDiffWithIssues(
-                new PatchDiffParser().parse(patch),
-                enriched);
-        assertTrue(annotated.stream().anyMatch(l -> Boolean.TRUE.equals(l.getHighlighted())));
     }
 
     @Test

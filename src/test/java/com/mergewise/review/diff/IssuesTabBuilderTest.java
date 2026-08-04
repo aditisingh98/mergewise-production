@@ -7,40 +7,39 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class IssuesTabBuilderTest {
 
-    private final IssuesTabBuilder builder = new IssuesTabBuilder();
+    private final IssuesTabBuilder builder = new IssuesTabBuilder(new CodeFixSuggester());
 
     @Test
-    void buildsIssueCodeAndFixCodePerItem() {
+    void buildsDistinctIssueAndFixCode() {
         ReviewIssueModel issue = ReviewIssueModel.builder()
                 .id("1")
-                .severity("HIGH")
-                .title("Null risk")
-                .description("Dereference without check")
+                .severity("LOW")
+                .title("Wildcard import hides which types are used.")
+                .description("Wildcard import hides which types are used.")
                 .file("Main.java")
-                .line(10)
-                .issueCode("value.length();")
-                .fixCode("if (value != null) { value.length(); }")
-                .recommendation("Add null guard")
+                .line(2)
+                .newCode("import java.util.*;")
+                .recommendation("Replace wildcard imports with explicit imports for used classes.")
                 .build();
 
         PRFileChange change = new PRFileChange();
         change.setFilename("Main.java");
         change.setStatus("modified");
-        change.setRemovedLines(List.of("log.info(\"start\");"));
-        change.setAddedLines(List.of("value.length();"));
+        change.setRemovedLines(List.of());
+        change.setAddedLines(List.of("import java.util.*;"));
 
         var tab = builder.build(List.of(change), List.of(issue));
 
         assertEquals(1, tab.getItems().size());
-        assertEquals("value.length();", tab.getItems().get(0).getIssueCode());
-        assertEquals("if (value != null) { value.length(); }", tab.getItems().get(0).getFixCode());
+        assertEquals("import java.util.*;", tab.getItems().get(0).getIssueCode());
+        assertNotNull(tab.getItems().get(0).getFixCode());
+        assertNotEquals(tab.getItems().get(0).getIssueCode(), tab.getItems().get(0).getFixCode());
         assertEquals(1, tab.getFileDiffs().size());
-        assertEquals(1, tab.getFileDiffs().get(0).getRemovedLines().size());
-        assertEquals(1, tab.getFileDiffs().get(0).getAddedLines().size());
-        assertNotNull(tab.getFileDiffs().get(0).getIssues().get(0).getFixGuide());
+        assertEquals(List.of("1"), tab.getFileDiffs().get(0).getIssueIds());
     }
 }

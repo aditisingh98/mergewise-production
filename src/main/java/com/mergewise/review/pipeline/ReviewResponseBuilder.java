@@ -74,6 +74,8 @@ public class ReviewResponseBuilder {
                 .mergeConfidence(mergeConfidence)
                 .build();
 
+        IssuesTabSection issuesTab = issuesTabBuilder.build(context.getFileChanges(), issues);
+
         return PRAnalysisResponse.builder()
                 .repo(context.getRepo())
                 .prNumber(context.getPrNumber())
@@ -82,17 +84,34 @@ public class ReviewResponseBuilder {
                 .mergeDecision(mergeDecision)
                 .fixFirst(buildFixFirst(issues))
                 .issueExplorer(issueCategorizer.categorize(issues))
-                .issuesTab(issuesTabBuilder.build(context.getFileChanges(), issues))
+                .issuesTab(issuesTab)
+                .suggestionsTab(issuesTabBuilder.buildSuggestions(issuesTab))
                 .scores(scores)
                 .files(buildFiles(context, issues))
                 .fileChangeReviews(fileChangeReviewBuilder.build(context.getFileChanges(), issues))
-                .issues(issues)
+                .issues(toIssueRefs(issues))
+                .issueDetails(List.of())
                 .testing(buildTesting(context, issues))
                 .architecture(buildArchitecture(context, issues))
                 .metrics(buildMetrics(context, normalized))
                 .summaries(summaries)
                 .systemStatus(systemStatusBuilder.build(context))
                 .build();
+    }
+
+    private List<IssueRef> toIssueRefs(List<ReviewIssueModel> issues) {
+        return issues.stream()
+                .map(i -> IssueRef.builder()
+                        .id(i.getId())
+                        .severity(i.getSeverity())
+                        .category(i.getCategory())
+                        .explorerCategory(i.getExplorerCategory())
+                        .title(i.getTitle())
+                        .file(i.getFile())
+                        .line(i.getLine() != null && i.getLine() > 0 ? i.getLine() : null)
+                        .blocking(i.getBlocking())
+                        .build())
+                .toList();
     }
 
     private FixFirstSection buildFixFirst(List<ReviewIssueModel> issues) {

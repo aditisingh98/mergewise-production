@@ -32,7 +32,6 @@ public class StaticAnalysisService {
         String severity = finding.getSeverity() != null ? finding.getSeverity().toUpperCase() : "MEDIUM";
         String file = finding.getFile() != null ? finding.getFile() : "—";
         String message = finding.getMessage() != null ? finding.getMessage() : "Static analysis finding";
-        String code = finding.getAffectedCode();
 
         return ReviewIssue.builder()
                 .id(UUID.randomUUID().toString())
@@ -42,12 +41,11 @@ public class StaticAnalysisService {
                 .line(finding.getLine() > 0 ? finding.getLine() : 0)
                 .title(truncate(message, 120))
                 .rootCause(message)
-                .description(message + (code != null && !code.isBlank() ? " Code: `" + code.trim() + "`" : ""))
+                .description(finding.getMessage())
                 .productionImpact("Static analysis signal in changed lines; validate in context before merge.")
                 .fixRecommendation(finding.getSuggestion() != null && !finding.getSuggestion().isBlank()
                         ? finding.getSuggestion()
                         : "Address the finding using project conventions.")
-                .fixedCodeExample(code)
                 .confidenceScore(78)
                 .build();
     }

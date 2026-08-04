@@ -27,9 +27,11 @@ public class IssueCodeContextEnricher {
             "^[^:]+:(\\d+)\\s*-\\s*");
 
     private final PatchDiffParser patchDiffParser;
+    private final CodeFixSuggester codeFixSuggester;
 
-    public IssueCodeContextEnricher(PatchDiffParser patchDiffParser) {
+    public IssueCodeContextEnricher(PatchDiffParser patchDiffParser, CodeFixSuggester codeFixSuggester) {
         this.patchDiffParser = patchDiffParser;
+        this.codeFixSuggester = codeFixSuggester;
     }
 
     public List<ReviewIssueModel> enrich(List<PRFileChange> fileChanges, List<ReviewIssueModel> issues) {
@@ -83,9 +85,10 @@ public class IssueCodeContextEnricher {
         String file = issue.getFile();
         if (file == null || file.isBlank() || "—".equals(file)) {
             ReviewIssueModel built = builder.build();
-            return built.toBuilder()
+            built = built.toBuilder()
                     .developmentGuidance(defaultGuidance(built))
                     .build();
+            return applyIssueFixCodes(built);
         }
 
         List<DiffLine> diff = diffByFile.getOrDefault(file, List.of());
@@ -104,8 +107,10 @@ public class IssueCodeContextEnricher {
                     .contextSnippet(ctx.snippet())
                     .build());
             ReviewIssueModel partial = builder.build();
-            if (partial.getFixedExample() == null || partial.getFixedExample().isBlank()) {
-                builder.fixedExample(suggestFixFromContext(issue, ctx));
+            String suggested = suggestFixFromContext(issue, ctx);
+            if (suggested != null && !suggested.isBlank()
+                    && !suggested.trim().equals(firstNonBlank(partial.getNewCode(), partial.getAffectedCode()))) {
+                builder.fixedExample(suggested);
             }
         } else {
             PRFileChange change = changeByFile.get(file);
@@ -122,40 +127,27 @@ public class IssueCodeContextEnricher {
     }
 
     private ReviewIssueModel applyIssueFixCodes(ReviewIssueModel built) {
-        String issueCode = firstNonBlank(
-                built.getIssueCode(),
-                built.getNewCode(),
-                built.getAffectedCode(),
-                built.getOldCode());
-        String fixCode = firstNonBlank(built.getFixCode(), built.getFixedExample(), inferFixCode(built));
+        String issueCode = codeFixSuggester.resolveIssueCode(built);
+        String fixCode = codeFixSuggester.suggest(built, issueCode);
+        if (issueCode != null && fixCode != null && issueCode.trim().equals(fixCode.trim())) {
+            fixCode = null;
+        }
+        String fixedExample = fixCode != null ? fixCode : built.getFixedExample();
         return built.toBuilder()
                 .issueCode(issueCode)
                 .fixCode(fixCode)
+                .fixedExample(fixedExample)
                 .build();
-    }
-
-    private String inferFixCode(ReviewIssueModel issue) {
-        if (issue.getIssueCode() == null && issue.getNewCode() == null) {
-            return null;
-        }
-        String line = firstNonBlank(issue.getIssueCode(), issue.getNewCode(), issue.getAffectedCode());
-        if (line == null) {
-            return null;
-        }
-        String lower = line.toLowerCase(Locale.ROOT);
-        if (lower.contains("system.out") || lower.contains("system.err")) {
-            return line.replaceAll("System\\.(out|err)\\.print\\w*", "log.info");
-        }
-        if (line.matches(".*\\b\\w+\\s*=\\s*null\\s*;.*")) {
-            return line.replace("= null", "= Objects.requireNonNull(value, \"value\")");
-        }
-        return null;
     }
 
     private void polishNarrative(ReviewIssueModel.ReviewIssueModelBuilder builder, ReviewIssueModel issue) {
         String description = cleanDescription(issue.getDescription(), issue.getTitle());
         if (description == null || description.isBlank()) {
             description = issue.getTitle();
+        }
+        int codeIdx = description.indexOf(" Code: `");
+        if (codeIdx > 0) {
+            description = description.substring(0, codeIdx).trim();
         }
         builder.description(description);
 

@@ -27,6 +27,7 @@ public class FileDiffSummary {
     @Builder.Default
     private List<String> addedLines = new ArrayList<>();
 
+    /** IDs of findings in {@link IssuesTabSection#getItems()} for this file. */
     @Builder.Default
-    private List<IssueTabItem> issues = new ArrayList<>();
+    private List<String> issueIds = new ArrayList<>();
 }

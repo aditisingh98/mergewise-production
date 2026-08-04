@@ -29,20 +29,31 @@ public class PRAnalysisResponse {
 
     private IssueExplorerSection issueExplorer;
 
-    /** Simplified Issues tab: {@code items} (issueCode + fixCode) and {@code fileDiffs} (added/removed lines). */
+    /** Simplified Issues tab: {@code items} + per-file {@code fileDiffs} (added/removed lines, issue IDs only). */
     private IssuesTabSection issuesTab;
 
+    /** Suggestions tab: {@code issueCode} + {@code fixCode} per finding (no duplicate affected/new fields). */
+    private SuggestionsTabSection suggestionsTab;
+
     private ScoresSection scores;
+
+    /** Lightweight index for explorer / merge decision (full code lives under {@link #issuesTab}). */
+    @Builder.Default
+    private List<IssueRef> issues = new ArrayList<>();
+
+    /**
+     * @deprecated Use {@link #issuesTab} and {@link #suggestionsTab}. Kept empty to avoid duplicate payloads.
+     */
+    @Deprecated
+    @Builder.Default
+    private List<ReviewIssueModel> issueDetails = new ArrayList<>();
 
     @Builder.Default
     private List<FileReviewRef> files = new ArrayList<>();
 
-    /** Full per-file old/new diff, patch, issues, and suggestions for developer UI. */
+    /** Per-file diff summary (patch + line lists). Nested issue payloads omitted — use {@link #issuesTab}. */
     @Builder.Default
     private List<FileChangeReview> fileChangeReviews = new ArrayList<>();
-
-    @Builder.Default
-    private List<ReviewIssueModel> issues = new ArrayList<>();
 
     private TestingView testing;
 
