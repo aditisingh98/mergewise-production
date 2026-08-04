@@ -7,7 +7,7 @@ services:
     runtime: docker
     plan: free
     region: oregon
-    branch: develop
+    branch: develop_feature_aman
     dockerfilePath: ./Dockerfile
     healthCheckPath: /actuator/health
     autoDeploy: true

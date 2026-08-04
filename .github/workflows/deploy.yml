@@ -2,7 +2,7 @@ name: Build and Deploy MergeWise
 
 on:
   push:
-    branches: [main, master, cursor/enterprise-pr-review-platform]
+    branches: [main, master, develop_feature_aman, cursor/enterprise-pr-review-platform]
   pull_request:
     branches: [main, master]
 
