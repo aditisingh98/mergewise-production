@@ -188,11 +188,23 @@ public class OpenAIService {
           - missing validation
           - missing or weak tests
 
-          Return output in this exact line format:
+          Return output in this exact block format (repeat per issue):
+
+          ISSUE: [severity] filename:lineNumber - clear problem description and user impact
+          OLD: single line of code before the change (or "n/a" if added-only)
+          NEW: single line of problematic code after the change
+          SUGGESTION: specific development fix (what to change and why)
+          FIX: short corrected code snippet when possible
+
+          Alternate compact format (still supported):
           ISSUE: [severity] filename - problem and impact
           SUGGESTION: filename - specific fix
 
-          Use severity values: critical, high, medium, low.
+          Rules:
+          - Always include lineNumber in ISSUE when known from the diff.
+          - Descriptions must be actionable for developers (not generic).
+          - Do not report infrastructure, API rate limits, or missing AI configuration.
+          - Use severity values: critical, high, medium, low.
           If no issues are found, return exactly:
           NO_ISSUES
 

@@ -7,6 +7,7 @@ import com.mergewise.dto.PRFileChange;
 import com.mergewise.dto.TestingRecommendation;
 import com.mergewise.dto.review.*;
 import com.mergewise.review.diff.FileChangeReviewBuilder;
+import com.mergewise.review.diff.IssueCodeContextEnricher;
 import com.mergewise.review.normalize.SeverityUtils;
 import com.mergewise.service.DeploymentInfoService;
 import com.mergewise.service.MergeDecisionEngine;
@@ -26,6 +27,7 @@ public class ReviewResponseBuilder {
     private final SystemStatusBuilder systemStatusBuilder;
     private final DeploymentInfoService deploymentInfoService;
     private final FileChangeReviewBuilder fileChangeReviewBuilder;
+    private final IssueCodeContextEnricher issueCodeContextEnricher;
 
     public ReviewResponseBuilder(
             IssueDeduplicator issueDeduplicator,
@@ -35,7 +37,8 @@ public class ReviewResponseBuilder {
             DashboardBuilder dashboardBuilder,
             SystemStatusBuilder systemStatusBuilder,
             DeploymentInfoService deploymentInfoService,
-            FileChangeReviewBuilder fileChangeReviewBuilder) {
+            FileChangeReviewBuilder fileChangeReviewBuilder,
+            IssueCodeContextEnricher issueCodeContextEnricher) {
         this.issueDeduplicator = issueDeduplicator;
         this.issueCategorizer = issueCategorizer;
         this.scoreCalculator = scoreCalculator;
@@ -44,11 +47,14 @@ public class ReviewResponseBuilder {
         this.systemStatusBuilder = systemStatusBuilder;
         this.deploymentInfoService = deploymentInfoService;
         this.fileChangeReviewBuilder = fileChangeReviewBuilder;
+        this.issueCodeContextEnricher = issueCodeContextEnricher;
     }
 
     public PRAnalysisResponse build(AgentContext context, ReviewSummaries summaries) {
         IssueNormalizer.NormalizedIssues normalized = issueDeduplicator.deduplicate(context.getReviewIssues());
-        List<ReviewIssueModel> issues = normalized.getIssues();
+        List<ReviewIssueModel> issues = issueCodeContextEnricher.enrich(
+                context.getFileChanges(),
+                normalized.getIssues());
 
         ExplainedScore mergeConfidence = scoreCalculator.mergeConfidence(issues, context);
         MergeDecisionEngine.MergeDecision rawDecision = mergeDecisionEngine.decide(issues);

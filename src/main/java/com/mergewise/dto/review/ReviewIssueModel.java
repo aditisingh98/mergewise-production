@@ -42,6 +42,23 @@ public class ReviewIssueModel {
 
     private String fixedExample;
 
+    /** Line(s) in the PR that exhibit the problem (usually new-side code). */
+    private String affectedCode;
+
+    /** Single-line or short excerpt of pre-change code at the finding location. */
+    private String oldCode;
+
+    /** Single-line or short excerpt of post-change code at the finding location. */
+    private String newCode;
+
+    /** Nearby lines for UI context (includes changed and unchanged lines). */
+    private String codeSnippet;
+
+    /** Actionable guidance for developers (fix steps, patterns, conventions). */
+    private String developmentGuidance;
+
+    private CodeComparison codeComparison;
+
     private Integer confidence;
 
     private String estimatedFixTime;

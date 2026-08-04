@@ -8,15 +8,9 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 public class StaticAnalysisService {
-
-    private static final Pattern HEURISTIC_ISSUE_PATTERN = Pattern.compile(
-            "^\\[(critical|high|medium|low)]\\s+(.+?)\\s+-\\s+(.+)$",
-            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
     private final HeuristicReviewService heuristicReviewService;
 
@@ -27,40 +21,34 @@ public class StaticAnalysisService {
     public List<ReviewIssue> analyze(AgentContext context) {
         HeuristicReviewService.Review review = heuristicReviewService.review(context.getFileChanges());
         List<ReviewIssue> issues = new ArrayList<>();
-        List<String> issueLines = review.getIssues();
-        List<String> suggestionLines = review.getSuggestions();
 
-        for (int i = 0; i < issueLines.size(); i++) {
-            String suggestion = i < suggestionLines.size() ? suggestionLines.get(i) : "";
-            issues.add(fromHeuristicLine(issueLines.get(i), suggestion));
+        for (HeuristicReviewService.HeuristicFinding finding : review.getFindings()) {
+            issues.add(fromFinding(finding));
         }
         return issues;
     }
 
-    private ReviewIssue fromHeuristicLine(String issueLine, String suggestion) {
-        Matcher m = HEURISTIC_ISSUE_PATTERN.matcher(issueLine.trim());
-        String severity = "MEDIUM";
-        String file = "—";
-        String description = issueLine;
-        if (m.matches()) {
-            severity = m.group(1).toUpperCase();
-            file = m.group(2).trim();
-            description = m.group(3).trim();
-        }
+    private ReviewIssue fromFinding(HeuristicReviewService.HeuristicFinding finding) {
+        String severity = finding.getSeverity() != null ? finding.getSeverity().toUpperCase() : "MEDIUM";
+        String file = finding.getFile() != null ? finding.getFile() : "—";
+        String message = finding.getMessage() != null ? finding.getMessage() : "Static analysis finding";
+        String code = finding.getAffectedCode();
+
         return ReviewIssue.builder()
                 .id(UUID.randomUUID().toString())
                 .severity(severity)
                 .category("STATIC_ANALYSIS")
                 .file(file)
-                .line(0)
-                .title(truncate(description, 120))
-                .rootCause(description)
-                .description(issueLine)
-                .productionImpact("Static analysis signal; validate in context before merge.")
-                .fixRecommendation(suggestion != null && !suggestion.isBlank()
-                        ? suggestion
+                .line(finding.getLine() > 0 ? finding.getLine() : 0)
+                .title(truncate(message, 120))
+                .rootCause(message)
+                .description(message + (code != null && !code.isBlank() ? " Code: `" + code.trim() + "`" : ""))
+                .productionImpact("Static analysis signal in changed lines; validate in context before merge.")
+                .fixRecommendation(finding.getSuggestion() != null && !finding.getSuggestion().isBlank()
+                        ? finding.getSuggestion()
                         : "Address the finding using project conventions.")
-                .confidenceScore(70)
+                .fixedCodeExample(code)
+                .confidenceScore(78)
                 .build();
     }
 

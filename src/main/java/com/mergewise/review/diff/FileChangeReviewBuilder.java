@@ -1,6 +1,7 @@
 package com.mergewise.review.diff;
 
 import com.mergewise.dto.PRFileChange;
+import com.mergewise.dto.review.DiffLine;
 import com.mergewise.dto.review.FileChangeReview;
 import com.mergewise.dto.review.ReviewIssueModel;
 import com.mergewise.dto.review.SuggestionItem;
@@ -17,9 +18,13 @@ import java.util.stream.Collectors;
 public class FileChangeReviewBuilder {
 
     private final PatchDiffParser patchDiffParser;
+    private final IssueCodeContextEnricher issueCodeContextEnricher;
 
-    public FileChangeReviewBuilder(PatchDiffParser patchDiffParser) {
+    public FileChangeReviewBuilder(
+            PatchDiffParser patchDiffParser,
+            IssueCodeContextEnricher issueCodeContextEnricher) {
         this.patchDiffParser = patchDiffParser;
+        this.issueCodeContextEnricher = issueCodeContextEnricher;
     }
 
     public List<FileChangeReview> build(List<PRFileChange> fileChanges, List<ReviewIssueModel> allIssues) {
@@ -45,6 +50,10 @@ public class FileChangeReviewBuilder {
                     ? change.getAddedLines()
                     : List.of();
 
+            List<DiffLine> diffLines = issueCodeContextEnricher.annotateDiffWithIssues(
+                    patchDiffParser.parse(change.getPatch()),
+                    fileIssues);
+
             result.add(FileChangeReview.builder()
                     .file(file)
                     .previousFilename(change.getPreviousFilename())
@@ -59,7 +68,7 @@ public class FileChangeReviewBuilder {
                     .patch(change.getPatch())
                     .removedLines(new ArrayList<>(removed))
                     .addedLines(new ArrayList<>(added))
-                    .diffLines(patchDiffParser.parse(change.getPatch()))
+                    .diffLines(new ArrayList<>(diffLines))
                     .fileScore(score)
                     .risk(fileRisk(score))
                     .summary(buildSummary(fileIssues, change, removed.size(), added.size()))
@@ -95,19 +104,25 @@ public class FileChangeReviewBuilder {
     private List<SuggestionItem> toSuggestions(List<ReviewIssueModel> issues) {
         List<SuggestionItem> suggestions = new ArrayList<>();
         for (ReviewIssueModel issue : issues) {
-            if (issue.getRecommendation() == null || issue.getRecommendation().isBlank()) {
+            if ((issue.getRecommendation() == null || issue.getRecommendation().isBlank())
+                    && (issue.getDevelopmentGuidance() == null || issue.getDevelopmentGuidance().isBlank())) {
                 continue;
             }
+            String guidance = firstNonBlank(issue.getDevelopmentGuidance(), issue.getRecommendation());
             suggestions.add(SuggestionItem.builder()
                     .id(issue.getId())
                     .title(issue.getTitle())
-                    .description(issue.getRecommendation())
+                    .description(guidance != null ? guidance : issue.getDescription())
                     .why(issue.getRootCause() != null ? issue.getRootCause() : issue.getDescription())
                     .expectedBenefit(issue.getProductionImpact())
                     .estimatedEffort(effortForSeverity(issue.getSeverity()))
                     .priority(issue.getSeverity())
                     .file(issue.getFile())
                     .line(issue.getLine())
+                    .affectedCode(issue.getAffectedCode())
+                    .oldCode(issue.getOldCode())
+                    .newCode(issue.getNewCode())
+                    .suggestedCode(issue.getFixedExample())
                     .build());
         }
         return suggestions;
@@ -145,5 +160,12 @@ public class FileChangeReviewBuilder {
             case "LOW" -> "30m";
             default -> "15m";
         };
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        if (primary != null && !primary.isBlank()) {
+            return primary;
+        }
+        return fallback;
     }
 }

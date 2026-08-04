@@ -31,4 +31,12 @@ public class SuggestionItem {
     private String file;
 
     private Integer line;
+
+    private String affectedCode;
+
+    private String oldCode;
+
+    private String newCode;
+
+    private String suggestedCode;
 }
