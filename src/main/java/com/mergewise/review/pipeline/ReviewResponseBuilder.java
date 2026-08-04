@@ -8,6 +8,7 @@ import com.mergewise.dto.TestingRecommendation;
 import com.mergewise.dto.review.*;
 import com.mergewise.review.diff.FileChangeReviewBuilder;
 import com.mergewise.review.diff.IssueCodeContextEnricher;
+import com.mergewise.review.diff.IssuesTabBuilder;
 import com.mergewise.review.normalize.SeverityUtils;
 import com.mergewise.service.DeploymentInfoService;
 import com.mergewise.service.MergeDecisionEngine;
@@ -28,6 +29,7 @@ public class ReviewResponseBuilder {
     private final DeploymentInfoService deploymentInfoService;
     private final FileChangeReviewBuilder fileChangeReviewBuilder;
     private final IssueCodeContextEnricher issueCodeContextEnricher;
+    private final IssuesTabBuilder issuesTabBuilder;
 
     public ReviewResponseBuilder(
             IssueDeduplicator issueDeduplicator,
@@ -38,7 +40,8 @@ public class ReviewResponseBuilder {
             SystemStatusBuilder systemStatusBuilder,
             DeploymentInfoService deploymentInfoService,
             FileChangeReviewBuilder fileChangeReviewBuilder,
-            IssueCodeContextEnricher issueCodeContextEnricher) {
+            IssueCodeContextEnricher issueCodeContextEnricher,
+            IssuesTabBuilder issuesTabBuilder) {
         this.issueDeduplicator = issueDeduplicator;
         this.issueCategorizer = issueCategorizer;
         this.scoreCalculator = scoreCalculator;
@@ -48,6 +51,7 @@ public class ReviewResponseBuilder {
         this.deploymentInfoService = deploymentInfoService;
         this.fileChangeReviewBuilder = fileChangeReviewBuilder;
         this.issueCodeContextEnricher = issueCodeContextEnricher;
+        this.issuesTabBuilder = issuesTabBuilder;
     }
 
     public PRAnalysisResponse build(AgentContext context, ReviewSummaries summaries) {
@@ -78,6 +82,7 @@ public class ReviewResponseBuilder {
                 .mergeDecision(mergeDecision)
                 .fixFirst(buildFixFirst(issues))
                 .issueExplorer(issueCategorizer.categorize(issues))
+                .issuesTab(issuesTabBuilder.build(context.getFileChanges(), issues))
                 .scores(scores)
                 .files(buildFiles(context, issues))
                 .fileChangeReviews(fileChangeReviewBuilder.build(context.getFileChanges(), issues))

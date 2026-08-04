@@ -1,7 +1,6 @@
 package com.mergewise.review.diff;
 
 import com.mergewise.dto.PRFileChange;
-import com.mergewise.dto.review.DiffLine;
 import com.mergewise.dto.review.FileChangeReview;
 import com.mergewise.dto.review.ReviewIssueModel;
 import com.mergewise.dto.review.SuggestionItem;
@@ -16,16 +15,6 @@ import java.util.stream.Collectors;
 
 @Component
 public class FileChangeReviewBuilder {
-
-    private final PatchDiffParser patchDiffParser;
-    private final IssueCodeContextEnricher issueCodeContextEnricher;
-
-    public FileChangeReviewBuilder(
-            PatchDiffParser patchDiffParser,
-            IssueCodeContextEnricher issueCodeContextEnricher) {
-        this.patchDiffParser = patchDiffParser;
-        this.issueCodeContextEnricher = issueCodeContextEnricher;
-    }
 
     public List<FileChangeReview> build(List<PRFileChange> fileChanges, List<ReviewIssueModel> allIssues) {
         if (fileChanges == null || fileChanges.isEmpty()) {
@@ -50,10 +39,6 @@ public class FileChangeReviewBuilder {
                     ? change.getAddedLines()
                     : List.of();
 
-            List<DiffLine> diffLines = issueCodeContextEnricher.annotateDiffWithIssues(
-                    patchDiffParser.parse(change.getPatch()),
-                    fileIssues);
-
             result.add(FileChangeReview.builder()
                     .file(file)
                     .previousFilename(change.getPreviousFilename())
@@ -68,7 +53,7 @@ public class FileChangeReviewBuilder {
                     .patch(change.getPatch())
                     .removedLines(new ArrayList<>(removed))
                     .addedLines(new ArrayList<>(added))
-                    .diffLines(new ArrayList<>(diffLines))
+                    .diffLines(new ArrayList<>())
                     .fileScore(score)
                     .risk(fileRisk(score))
                     .summary(buildSummary(fileIssues, change, removed.size(), added.size()))
@@ -105,7 +90,8 @@ public class FileChangeReviewBuilder {
         List<SuggestionItem> suggestions = new ArrayList<>();
         for (ReviewIssueModel issue : issues) {
             if ((issue.getRecommendation() == null || issue.getRecommendation().isBlank())
-                    && (issue.getDevelopmentGuidance() == null || issue.getDevelopmentGuidance().isBlank())) {
+                    && (issue.getDevelopmentGuidance() == null || issue.getDevelopmentGuidance().isBlank())
+                    && (issue.getFixCode() == null || issue.getFixCode().isBlank())) {
                 continue;
             }
             String guidance = firstNonBlank(issue.getDevelopmentGuidance(), issue.getRecommendation());
@@ -119,10 +105,10 @@ public class FileChangeReviewBuilder {
                     .priority(issue.getSeverity())
                     .file(issue.getFile())
                     .line(issue.getLine())
-                    .affectedCode(issue.getAffectedCode())
+                    .affectedCode(firstNonBlank(issue.getIssueCode(), issue.getAffectedCode(), issue.getNewCode()))
                     .oldCode(issue.getOldCode())
-                    .newCode(issue.getNewCode())
-                    .suggestedCode(issue.getFixedExample())
+                    .newCode(firstNonBlank(issue.getIssueCode(), issue.getNewCode()))
+                    .suggestedCode(firstNonBlank(issue.getFixCode(), issue.getFixedExample()))
                     .build());
         }
         return suggestions;
@@ -162,10 +148,12 @@ public class FileChangeReviewBuilder {
         };
     }
 
-    private String firstNonBlank(String primary, String fallback) {
-        if (primary != null && !primary.isBlank()) {
-            return primary;
+    private String firstNonBlank(String... values) {
+        for (String v : values) {
+            if (v != null && !v.isBlank()) {
+                return v;
+            }
         }
-        return fallback;
+        return null;
     }
 }

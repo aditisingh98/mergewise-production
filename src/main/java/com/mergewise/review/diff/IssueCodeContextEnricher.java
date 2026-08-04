@@ -118,7 +118,38 @@ public class IssueCodeContextEnricher {
                     .developmentGuidance(buildDevelopmentGuidance(built))
                     .build();
         }
-        return built;
+        return applyIssueFixCodes(built);
+    }
+
+    private ReviewIssueModel applyIssueFixCodes(ReviewIssueModel built) {
+        String issueCode = firstNonBlank(
+                built.getIssueCode(),
+                built.getNewCode(),
+                built.getAffectedCode(),
+                built.getOldCode());
+        String fixCode = firstNonBlank(built.getFixCode(), built.getFixedExample(), inferFixCode(built));
+        return built.toBuilder()
+                .issueCode(issueCode)
+                .fixCode(fixCode)
+                .build();
+    }
+
+    private String inferFixCode(ReviewIssueModel issue) {
+        if (issue.getIssueCode() == null && issue.getNewCode() == null) {
+            return null;
+        }
+        String line = firstNonBlank(issue.getIssueCode(), issue.getNewCode(), issue.getAffectedCode());
+        if (line == null) {
+            return null;
+        }
+        String lower = line.toLowerCase(Locale.ROOT);
+        if (lower.contains("system.out") || lower.contains("system.err")) {
+            return line.replaceAll("System\\.(out|err)\\.print\\w*", "log.info");
+        }
+        if (line.matches(".*\\b\\w+\\s*=\\s*null\\s*;.*")) {
+            return line.replace("= null", "= Objects.requireNonNull(value, \"value\")");
+        }
+        return null;
     }
 
     private void polishNarrative(ReviewIssueModel.ReviewIssueModelBuilder builder, ReviewIssueModel issue) {

@@ -49,7 +49,12 @@ public class FileChangeReview {
     @Builder.Default
     private List<String> addedLines = new ArrayList<>();
 
-    /** Structured diff for UI: before/after with line numbers. */
+    /**
+     * Low-level diff rows for advanced inline UIs. Prefer {@link #addedLines}/{@link #removedLines}
+     * and {@code issuesTab} on {@link com.mergewise.dto.PRAnalysisResponse} for the Issues tab.
+     * @deprecated Use {@code issuesTab.fileDiffs} and {@code issuesTab.items} instead.
+     */
+    @Deprecated
     @Builder.Default
     private List<DiffLine> diffLines = new ArrayList<>();
 

@@ -29,6 +29,9 @@ public class PRAnalysisResponse {
 
     private IssueExplorerSection issueExplorer;
 
+    /** Simplified Issues tab: {@code items} (issueCode + fixCode) and {@code fileDiffs} (added/removed lines). */
+    private IssuesTabSection issuesTab;
+
     private ScoresSection scores;
 
     @Builder.Default

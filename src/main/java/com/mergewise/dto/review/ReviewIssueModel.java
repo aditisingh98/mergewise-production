@@ -57,6 +57,16 @@ public class ReviewIssueModel {
     /** Actionable guidance for developers (fix steps, patterns, conventions). */
     private String developmentGuidance;
 
+    /**
+     * Problem code in the PR (Issues tab). Same as {@link #newCode} when the issue is on added lines.
+     */
+    private String issueCode;
+
+    /**
+     * Suggested corrected code (Issues tab). Same as {@link #fixedExample} when available.
+     */
+    private String fixCode;
+
     private CodeComparison codeComparison;
 
     private Integer confidence;
