@@ -9,7 +9,6 @@ import com.mergewise.vcs.GitLabMRParser;
 import com.mergewise.vcs.GitLabMergeRequestRef;
 import com.mergewise.vcs.VcsProvider;
 import com.mergewise.vcs.VcsProviderDetector;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -35,7 +34,9 @@ public class PRAnalysisService {
         return analyze(request, null);
     }
 
-    public PRAnalysisResponse analyze(@Valid PRRequest request, String authorizationHeader) {
+    public PRAnalysisResponse analyze(PRRequest request, String authorizationHeader) {
+        validateRequest(request);
+
         VcsProvider provider = VcsProviderDetector.detect(request.getPrUrl());
 
         AgentContext context = new AgentContext();
@@ -92,5 +93,14 @@ public class PRAnalysisService {
 
         return gitLabService.fetchFileChanges(
                 ref, request.getGitlabToken(), request.getAccessToken(), authorizationHeader);
+    }
+
+    private void validateRequest(PRRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Request body is required");
+        }
+        if (request.getPrUrl() == null || request.getPrUrl().isBlank()) {
+            throw new IllegalArgumentException("prUrl is required");
+        }
     }
 }

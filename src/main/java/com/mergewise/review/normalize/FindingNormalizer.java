@@ -2,6 +2,7 @@ package com.mergewise.review.normalize;
 
 import com.mergewise.dto.ReviewIssue;
 import com.mergewise.dto.review.CanonicalFinding;
+import com.mergewise.service.AiReviewSupport;
 import lombok.Builder;
 import lombok.Data;
 import org.springframework.stereotype.Component;

@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,7 +37,7 @@ public class PRController {
                     + "Authorization: Bearer <token> is also supported."
     )
     public PRAnalysisResponse analyze(
-            @Valid @RequestBody PRRequest req,
+            @RequestBody PRRequest req,
             @Parameter(
                     name = "Authorization",
                     in = ParameterIn.HEADER,

@@ -3,6 +3,7 @@ package com.mergewise.review.pipeline;
 import com.mergewise.dto.ReviewIssue;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 @Service
 public class IssueDeduplicator {
 

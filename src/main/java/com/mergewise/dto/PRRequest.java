@@ -1,8 +1,6 @@
 package com.mergewise.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
@@ -12,31 +10,18 @@ public class PRRequest {
 
     private Integer prNumber;
 
-    @NotBlank(message = "prUrl is required")
+    /** GitHub pull request or GitLab merge request URL (required). */
     private String prUrl;
 
-    @Schema(
-            description = "Optional GitHub PAT for private GitHub repositories. "
-                    + "Ignored for GitLab URLs. Can also use Authorization: Bearer <token>.",
-            example = "ghp_xxxxxxxxxxxx"
-    )
+    /** Optional GitHub PAT for private repositories. */
     @JsonProperty("githubToken")
     private String githubToken;
 
-    @Schema(
-            description = "Optional GitLab personal access token for private GitLab merge requests. "
-                    + "Required for most self-hosted/private GitLab projects. "
-                    + "Can also use Authorization: Bearer <token>.",
-            example = "glpat-xxxxxxxxxxxx"
-    )
+    /** Optional GitLab PAT for private merge requests. */
     @JsonProperty("gitlabToken")
     private String gitlabToken;
 
-    @Schema(
-            description = "Optional unified access token. Used for the detected provider when "
-                    + "githubToken/gitlabToken is not set. Prefer githubToken or gitlabToken when both platforms are used.",
-            example = "ghp_xxx or glpat-xxx"
-    )
+    /** Optional unified token when githubToken/gitlabToken is not set. */
     @JsonProperty("accessToken")
     private String accessToken;
 }

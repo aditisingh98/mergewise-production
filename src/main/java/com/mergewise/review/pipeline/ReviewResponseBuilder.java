@@ -6,6 +6,7 @@ import com.mergewise.dto.PRAnalysisResponse;
 import com.mergewise.dto.PRFileChange;
 import com.mergewise.dto.TestingRecommendation;
 import com.mergewise.dto.review.*;
+import com.mergewise.review.diff.FileChangeReviewBuilder;
 import com.mergewise.review.normalize.SeverityUtils;
 import com.mergewise.service.DeploymentInfoService;
 import com.mergewise.service.MergeDecisionEngine;
@@ -24,6 +25,7 @@ public class ReviewResponseBuilder {
     private final DashboardBuilder dashboardBuilder;
     private final SystemStatusBuilder systemStatusBuilder;
     private final DeploymentInfoService deploymentInfoService;
+    private final FileChangeReviewBuilder fileChangeReviewBuilder;
 
     public ReviewResponseBuilder(
             IssueDeduplicator issueDeduplicator,
@@ -32,7 +34,8 @@ public class ReviewResponseBuilder {
             MergeDecisionEngine mergeDecisionEngine,
             DashboardBuilder dashboardBuilder,
             SystemStatusBuilder systemStatusBuilder,
-            DeploymentInfoService deploymentInfoService) {
+            DeploymentInfoService deploymentInfoService,
+            FileChangeReviewBuilder fileChangeReviewBuilder) {
         this.issueDeduplicator = issueDeduplicator;
         this.issueCategorizer = issueCategorizer;
         this.scoreCalculator = scoreCalculator;
@@ -40,6 +43,7 @@ public class ReviewResponseBuilder {
         this.dashboardBuilder = dashboardBuilder;
         this.systemStatusBuilder = systemStatusBuilder;
         this.deploymentInfoService = deploymentInfoService;
+        this.fileChangeReviewBuilder = fileChangeReviewBuilder;
     }
 
     public PRAnalysisResponse build(AgentContext context, ReviewSummaries summaries) {
@@ -70,6 +74,7 @@ public class ReviewResponseBuilder {
                 .issueExplorer(issueCategorizer.categorize(issues))
                 .scores(scores)
                 .files(buildFiles(context, issues))
+                .fileChangeReviews(fileChangeReviewBuilder.build(context.getFileChanges(), issues))
                 .issues(issues)
                 .testing(buildTesting(context, issues))
                 .architecture(buildArchitecture(context, issues))

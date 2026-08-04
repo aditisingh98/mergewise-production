@@ -34,6 +34,10 @@ public class PRAnalysisResponse {
     @Builder.Default
     private List<FileReviewRef> files = new ArrayList<>();
 
+    /** Full per-file old/new diff, patch, issues, and suggestions for developer UI. */
+    @Builder.Default
+    private List<FileChangeReview> fileChangeReviews = new ArrayList<>();
+
     @Builder.Default
     private List<ReviewIssueModel> issues = new ArrayList<>();
 
